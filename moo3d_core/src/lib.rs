@@ -23,7 +23,7 @@ impl GameState {
     pub fn get_mut_pixels(&mut self) -> &mut [u8] {
         self.renderer.get_mut_pixels()
     }
-    pub fn render(&mut self, curr_time: usize) {
+    pub fn render(&mut self, _curr_time: usize) {
         let center_x = self.renderer.width / 2;
         let center_y = self.renderer.height / 2;
 
@@ -39,15 +39,18 @@ impl GameState {
             ),
             &(near as usize, near as usize, near as usize)
         );
-        self.renderer.write_triangle(
-            &(center_x/3, center_y/4),
-            &(center_x/4, center_y/5),
-            &(center_x/5, center_y/3),
+        self.renderer.draw_triface(
+            &Point3D::from_euc_coords(center_x as isize/3, center_y as isize/4, 4 * near),
+            &Point3D::from_euc_coords(center_x as isize/4, center_y as isize/5, 4 * near),
+            &Point3D::from_euc_coords(center_x as isize/5, center_y as isize/3, 5 * near),
             &Color::new(255, 255, 255, 255),
         );
     }
     pub fn translate_camera(&mut self, trans_x: isize, trans_y: isize, trans_z: isize) {
         self.renderer.camera.translate(trans_x, trans_y, trans_z);
+    }
+    pub fn translate_camera_look(&mut self, trans_x: f32, trans_y: f32, trans_z: f32) {
+        self.renderer.camera.translate_look(trans_x, trans_y, trans_z);
     }
 }
 
@@ -58,6 +61,7 @@ mod tests {
     #[test]
     fn test_cuboid() {
         let mut gs_manager = GameState::new(1918, 959);
+        gs_manager.renderer.camera.translate(0, 0, 5);
         gs_manager.render(5);
     }
 }

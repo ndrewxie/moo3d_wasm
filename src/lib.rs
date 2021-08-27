@@ -26,6 +26,11 @@ pub unsafe extern "C" fn translate_camera(input: &mut moo3d_core::GameState, tra
     (*input).translate_camera(trans_x, trans_y, trans_z);
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn translate_camera_look(input: &mut moo3d_core::GameState, trans_x: f32, trans_y: f32, trans_z: f32) {
+    (*input).translate_camera_look(trans_x, trans_y, trans_z);
+}
+
 // tests
 #[no_mangle]
 pub extern "C" fn test_return_5() -> usize {

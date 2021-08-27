@@ -12,6 +12,7 @@ pub struct Matrix {
     pub elements: Vec<f32>,
 }
 #[repr(C)]
+#[derive(Debug)]
 pub struct Point3D {
     pub position: Vector,
 }
@@ -92,11 +93,11 @@ impl Vector {
     }
     pub fn homo_to_euc_inplace(&mut self) {
         assert_eq!(self.dims, 4);
-        let w = self.elements.pop().unwrap();
-        self.elements[0] /= w;
-        self.elements[1] /= w;
-        self.elements[2] /= w;
-        self.dims -= 1;
+        let w = self.get(3);
+        self.set(0, self.get(0) / w);
+        self.set(1, self.get(1) / w);
+        self.set(2, self.get(2) / w);
+        self.set(3, self.get(3) / w);
     }
     pub fn homo_to_euc(&self) -> Self {
         assert_eq!(self.dims, 4);
@@ -105,7 +106,7 @@ impl Vector {
         to_return.set(0, self.get(0) / w);
         to_return.set(1, self.get(1) / w);
         to_return.set(2, self.get(2) / w);
-        to_return.dims -= 1;
+        to_return.set(3, self.get(3) / w);
         to_return
     }
 }
@@ -222,7 +223,7 @@ impl Point3D {
 pub struct RenderMatrices {
 }
 impl RenderMatrices {
-    pub fn bundle_points(points: &[Point3D]) -> Matrix {
+    pub fn bundle_points(points: &[&Point3D]) -> Matrix {
         let mut to_return = Vec::with_capacity(4 * points.len());
         for indx in 0..4 {
             for elem in points.iter() {
@@ -350,5 +351,18 @@ impl RenderMatrices {
         to_return.set(3, 3, 1.0);
         
         to_return        
+    }
+
+    #[inline(always)]
+    fn det(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32, g: f32, h: f32, i: f32) -> f32 {
+        a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
+    }
+    #[inline(always)]
+    pub fn bary_coords(p: &(f32, f32), v1: &(f32, f32), v2: &(f32, f32), v3: &(f32, f32)) -> (f32, f32, f32) {
+        let denom = 1.0/Self::det(1.0, 1.0, 1.0, v1.0, v2.0, v3.0, v1.1, v2.1, v3.1);
+        let u = Self::det(1.0, 1.0, 1.0, p.0, v2.0, v3.0, p.1, v2.1, v3.1) * denom;
+        let v = Self::det(1.0, 1.0, 1.0, v1.0, p.0, v3.0, v1.1, p.1, v3.1) * denom;
+        let w = Self::det(1.0, 1.0, 1.0, v1.0, v2.0, p.0, v1.1, v2.1, p.1) * denom;
+        (u, v, w)
     }
 }

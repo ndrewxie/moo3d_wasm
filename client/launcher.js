@@ -70,9 +70,11 @@ function launch_init() {
 }
 
 let translate_state = [0, 0, 0];
+let translate_look_state = [0, 0, 0];
 
 function renderLoop(curr_time) {
     instance.exports.translate_camera(gs_manager, translate_state[0], translate_state[1], translate_state[2]);
+    instance.exports.translate_camera_look(gs_manager, translate_look_state[0], translate_look_state[1], translate_look_state[2]);
 
     requestAnimationFrame(renderLoop);
     instance.exports.render_game(gs_manager, curr_time);
@@ -99,11 +101,23 @@ document.addEventListener('keydown', function(e) {
     else if (e.key == 's') {
         translate_state = [0, -50, 0];   
     }
-    else if (e.key == 'ArrowUp') {
+    else if (e.key == 'q') {
         translate_state = [0, 0, 50];   
     }
-    else if (e.key == 'ArrowDown') {
+    else if (e.key == 'e') {
         translate_state = [0, 0, -50];   
+    }
+    else if (e.key == 'ArrowUp') {
+        translate_look_state = [0, 0.1, 0];
+    }
+    else if (e.key == 'ArrowLeft') {
+        translate_look_state = [-0.1, 0, 0];
+    }
+    else if (e.key == 'ArrowDown') {
+        translate_look_state = [0, -0.1, 0];
+    }
+    else if (e.key == 'ArrowRight') {
+        translate_look_state = [0.1, 0, 0];
     }
 });
 
@@ -113,9 +127,15 @@ document.addEventListener('keyup', function(e) {
         case 'a':
         case 's':
         case 'd':
+        case 'q':
+        case 'e':
+            translate_state = [0, 0, 0];
+        break;
         case 'ArrowUp':
         case 'ArrowDown':
-            translate_state = [0, 0, 0];
+        case 'ArrowLeft':
+        case 'ArrowRight':
+            translate_look_state = [0, 0, 0];
         break;
     }
 })

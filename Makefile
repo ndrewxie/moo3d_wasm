@@ -5,5 +5,5 @@ all:
 
 test:
 	clear
-	cargo test --all -- --nocapture
-	cargo test -p moo3d_core -- --nocapture
+	RUST_BACKTRACE=1 cargo test --all -- --nocapture
+	RUST_BACKTRACE=1 cargo test -p moo3d_core -- --nocapture
