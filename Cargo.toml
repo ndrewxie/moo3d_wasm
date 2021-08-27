@@ -1,0 +1,19 @@
+[package]
+name = "moo3d_wasm"
+version = "0.1.0"
+authors = ["ykS"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wee_alloc = "0.4.5"
+
+[dependencies.moo3d_core]
+path = "./moo3d_core"
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+codegen-units = 1
