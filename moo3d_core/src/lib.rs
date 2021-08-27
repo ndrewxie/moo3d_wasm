@@ -61,7 +61,9 @@ mod tests {
     #[test]
     fn test_cuboid() {
         let mut gs_manager = GameState::new(1918, 959);
-        gs_manager.renderer.camera.translate(0, 0, 5);
-        gs_manager.render(5);
+        gs_manager.renderer.camera.translate(0, 0, 2300);
+        for j in 0..300 {
+            gs_manager.render(j);
+        }
     }
 }

@@ -7,3 +7,8 @@ test:
 	clear
 	RUST_BACKTRACE=1 cargo test --all -- --nocapture
 	RUST_BACKTRACE=1 cargo test -p moo3d_core -- --nocapture
+
+profile:
+	clear
+	cargo test --no-run -p moo3d_core
+	cp `find ./target/debug/deps/ -maxdepth 1 -name "*moo3d_core*" ! -name "*.*"` ./
