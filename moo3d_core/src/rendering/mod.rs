@@ -48,7 +48,7 @@ impl Renderer {
     pub fn clear(&mut self, color: &Color) {
         for indx in 0..self.width {
             for indy in 0..self.height {
-                self.internal_write_pixel(indx as isize, indy as isize, 100000.0, color, true);
+                self.internal_write_pixel(indx as isize, indy as isize, 100000.0, color, false, false);
             }
         }
     }
@@ -81,24 +81,25 @@ impl Renderer {
         return true;
     }
     #[inline(always)]
-    fn internal_write_pixel(&mut self, x: isize, y: isize, z: f32, color: &Color, ignore_z: bool) {
-        if (!ignore_z) && !self.to_render(x, y, Some(z)) {
+    fn internal_write_pixel(&mut self, x: isize, y: isize, z: f32, color: &Color, respect_bounds: bool, respect_z: bool) {
+        if respect_bounds && !self.to_render(x, y, Some(z)) {
             return;
         }
-        if (!ignore_z) && z > self.z_buffer[y as usize * self.width + x as usize] {
+		let pixel_offset = y as usize * self.width + x as usize;
+        if respect_z && z > self.z_buffer[pixel_offset] {
             return;
         }
 
-        let offset = 4 * (y as usize * self.width + x as usize);
+        let offset = 4 * pixel_offset;
         self.pixels[offset] = color.r;
         self.pixels[offset+1] = color.g;
         self.pixels[offset+2] = color.b;
         self.pixels[offset+3] = color.a;
-        self.z_buffer[y as usize * self.width + x as usize] = z;
+        self.z_buffer[pixel_offset] = z;
     }
     #[inline(always)]
     pub fn write_pixel(&mut self, x: isize, y: isize, z: f32, color: &Color) {
-        self.internal_write_pixel(x, y, z, color, false);
+        self.internal_write_pixel(x, y, z, color, true, true);
     }
     pub fn write_line(&mut self, p1: &Point3D, p2: &Point3D, color: &Color) {
         let x1 = p1.x_coord();
@@ -164,8 +165,8 @@ impl Renderer {
             }
         }
     }
-    fn interp_barycentric(coords: &(f32, f32, f32), va: f32, vb: f32, vc: f32) -> f32 {
-        let to_return = (1.0 / va) * coords.0 + (1.0 / vb) * coords.1 + (1.0 / vc) * coords.2;
+    fn interp_barycentric(u: f32, v: f32, w: f32, value_a: f32, value_b: f32, value_c: f32) -> f32 {
+        let to_return = (1.0 / value_a) * u + (1.0 / value_b) * v + (1.0 / value_c) * w;
         1.0 / to_return
     }
     pub fn draw_triface(&mut self, v1: &Point3D, v2: &Point3D, v3: &Point3D, color: &Color) {
@@ -185,31 +186,41 @@ impl Renderer {
         let render1 = self.to_render(p1.0, p1.1, Some(p1.2));
         let render2 = self.to_render(p2.0, p2.1, Some(p2.2));
         let render3 = self.to_render(p3.0, p3.1, Some(p3.2));
+		let respect_bounds = !(render1 && render2 && render3);
         if (!render1) && (!render2) && (!render3) {
             return;
         }
 
         let min_x = cmp::min(cmp::min(p1.0, p2.0), p3.0);
         let min_y = cmp::min(cmp::min(p1.1, p2.1), p3.1);
-
         let max_x = cmp::max(cmp::max(p1.0, p2.0), p3.0);
         let max_y = cmp::max(cmp::max(p1.1, p2.1), p3.1);
-        
-        for indx in min_x..max_x {
-            for indy in min_y..max_y {
-                let barycentric = RenderMatrices::bary_coords(
-                    &(indx as f32, indy as f32),
-                    &(p1.0 as f32, p1.1 as f32),
-                    &(p2.0 as f32, p2.1 as f32),
-                    &(p3.0 as f32, p3.1 as f32),
-                );
-                let has_neg = barycentric.0 < 0.0 || barycentric.1 < 0.0 || barycentric.2 < 0.0;
-                let has_large = barycentric.0 > 1.0 || barycentric.1 > 1.0 || barycentric.2 > 1.0;
-                if !(has_neg || has_large) {
-                    let z = Self::interp_barycentric(&barycentric, p1.2, p2.2, p3.2);
-                    self.write_pixel(indx as isize, indy as isize, z, color);
+    
+		let (mut row_u, mut row_v, mut row_w, dudx, dvdx, dwdx, dudy, dvdy, dwdy) = RenderMatrices::barycentric_params(
+			min_x as f32, min_y as f32,
+            p1.0 as f32, p1.1 as f32,
+            p2.0 as f32, p2.1 as f32,
+            p3.0 as f32, p3.1 as f32,
+		);
+		for indy in min_y..max_y {
+			let mut column_u: f32 = 0.0;
+			let mut column_v: f32 = 0.0;
+			let mut column_w: f32 = 0.0;
+            for indx in min_x..max_x {
+				let u = row_u + column_u;
+				let v = row_v + column_v;
+				let w = row_w + column_w;
+                if u >= 0.0 && v >= 0.0 && w >= 0.0 {
+                    let z = Self::interp_barycentric(u, v, w, p1.2, p2.2, p3.2);
+                    self.internal_write_pixel(indx as isize, indy as isize, z, color, respect_bounds, true);
                 }
+				column_u += dudx;
+				column_v += dvdx;
+				column_w += dwdx;
             }
+			row_u += dudy;
+			row_v += dvdy;
+			row_w += dwdy;
         }
     }
     pub fn draw_quadface(&mut self, v1: &Point3D, v2: &Point3D, v3: &Point3D, v4: &Point3D, color: &Color) {
@@ -230,9 +241,9 @@ impl Renderer {
 
         let vertices = RenderMatrices::split_points(
             &RenderMatrices::rotation_3d(
-                *pitch * 0.0, 
-                *roll * 0.0, 
-                *yaw * 0.0, 
+                *pitch, 
+                *roll, 
+                *yaw, 
                 Some(&(x as f32, y as f32, z as f32))
             ).matrix_mul(&RenderMatrices::bundle_points(&[
                 &Point3D::from_euc_coords(x - side_x, y - side_y, z + side_z), // 0

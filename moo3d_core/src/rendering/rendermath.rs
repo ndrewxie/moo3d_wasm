@@ -352,17 +352,29 @@ impl RenderMatrices {
         
         to_return        
     }
+    // Faster, specialized version of det, valid only if the top row (a, b, c) are all 1.0
+    fn bary_det(d: f32, e: f32, f: f32, g: f32, h: f32, i: f32) -> f32 {
+		e * (i - g) - f * (h - g) + d * (h - i)
+    }
+	// Input: p0, p1 are coords for (min_x, min_y)
+	// Returns (u, v, w, du/dx, dv/dx, dw/dx, du/dy, dv/dy, dw/dy) for upper-left corner
+	pub fn barycentric_params(
+		p0: f32, p1: f32, v10: f32, v11: f32, v20: f32, v21: f32, v30: f32, v31: f32
+	) -> (f32, f32, f32, f32, f32, f32, f32, f32, f32) {
+		let denom = 1.0 / Self::bary_det(v10, v20, v30, v11, v21, v31);
 
-    #[inline(always)]
-    fn det(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32, g: f32, h: f32, i: f32) -> f32 {
-        a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
-    }
-    #[inline(always)]
-    pub fn bary_coords(p: &(f32, f32), v1: &(f32, f32), v2: &(f32, f32), v3: &(f32, f32)) -> (f32, f32, f32) {
-        let denom = 1.0/Self::det(1.0, 1.0, 1.0, v1.0, v2.0, v3.0, v1.1, v2.1, v3.1);
-        let u = Self::det(1.0, 1.0, 1.0, p.0, v2.0, v3.0, p.1, v2.1, v3.1) * denom;
-        let v = Self::det(1.0, 1.0, 1.0, v1.0, p.0, v3.0, v1.1, p.1, v3.1) * denom;
-        let w = Self::det(1.0, 1.0, 1.0, v1.0, v2.0, p.0, v1.1, v2.1, p.1) * denom;
-        (u, v, w)
-    }
+		let u = Self::bary_det(p0, v20, v30, p1, v21, v31) * denom;
+		let v = Self::bary_det(v10, p0, v30, v11, p1, v31) * denom;
+		let w = 1.0 - u - v;
+
+		let dudx = denom * (v21 - v31);
+		let dvdx = denom * (v31 - v11);
+		let dwdx = -dudx - dvdx;
+
+		let dudy = denom * (v30 - v20);
+		let dvdy = denom * (v10 - v30);
+		let dwdy = -dudy - dvdy;
+
+		(u, v, w, dudx, dvdx, dwdx, dudy, dvdy, dwdy)
+	}
 }
