@@ -46,10 +46,19 @@ impl Renderer {
         }
     }
     pub fn clear(&mut self, color: &Color) {
-        for indx in 0..self.width {
-            for indy in 0..self.height {
-                self.internal_write_pixel(indx as isize, indy as isize, 100000.0, color, false, false);
+		let mut offset_base = 0;
+        for indy in 0..self.height {
+			let mut offset = 4 * offset_base;
+            for indx in 0..self.width {
+				self.pixels[offset] = color.r;
+				self.pixels[offset+1] = color.g;
+				self.pixels[offset+2] = color.b;
+				self.pixels[offset+3] = color.a;
+				self.z_buffer[offset_base + indx] = 100000.0;
+
+				offset += 4;
             }
+			offset_base += self.width;
         }
     }
     pub fn get_pixels(&self) -> &[u8] {
