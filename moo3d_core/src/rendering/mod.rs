@@ -45,6 +45,7 @@ impl Renderer {
             )
         }
     }
+	/*
     pub fn clear(&mut self, color: &Color) {
 		let mut offset_base = 0;
         for indy in 0..self.height {
@@ -61,6 +62,11 @@ impl Renderer {
 			offset_base += self.width;
         }
     }
+	*/
+	pub fn clear(&mut self) {
+		self.pixels.fill(255);
+		self.z_buffer.fill(100000.0);
+	}
     pub fn get_pixels(&self) -> &[u8] {
         &self.pixels
     }
@@ -95,7 +101,7 @@ impl Renderer {
             return;
         }
 		let pixel_offset = y as usize * self.width + x as usize;
-        if respect_z && z > self.z_buffer[pixel_offset] {
+        if respect_z && z >= self.z_buffer[pixel_offset] {
             return;
         }
 
@@ -266,7 +272,7 @@ impl Renderer {
             ]))
         );
 
-        let c1 = Color::new(255, 255, 255, 255);
+        let c1 = Color::new(152, 52, 235, 255);
         let c2 = Color::new(255, 0, 0, 255);
         let c3 = Color::new(0, 255, 0, 255);
         let c4 = Color::new(0, 0, 255, 255);

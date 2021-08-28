@@ -12,3 +12,8 @@ profile:
 	clear
 	cargo test --no-run -p moo3d_core
 	cp `find ./target/debug/deps/ -maxdepth 1 -name "*moo3d_core*" ! -name "*.*"` ./
+
+callgrind:
+	clear
+	cargo test --no-run -p moo3d_core
+	valgrind --tool=callgrind --cache-sim=yes --simulate-wb=yes --cacheuse=yes `find ./target/debug/deps/ -maxdepth 1 -name "*moo3d_core*" ! -name "*.*"`
