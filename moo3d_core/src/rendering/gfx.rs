@@ -9,12 +9,7 @@ pub struct Color {
 impl Color {
     #[inline(always)]
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
-        Self {
-            r,
-            g,
-            b,
-            a,
-        }
+        Self { r, g, b, a }
     }
 }
 
@@ -37,22 +32,21 @@ impl Texture {
 
                 if (x + y) % 2 == 0 {
                     to_return[offset] = 0;
-                    to_return[offset+1] = 0;
-                    to_return[offset+2] = 0;
-                    to_return[offset+3] = 255;
-                }
-                else {
+                    to_return[offset + 1] = 0;
+                    to_return[offset + 2] = 0;
+                    to_return[offset + 3] = 255;
+                } else {
                     to_return[offset] = 255;
-                    to_return[offset+1] = 255;
-                    to_return[offset+2] = 255;
-                    to_return[offset+3] = 255;
+                    to_return[offset + 1] = 255;
+                    to_return[offset + 2] = 255;
+                    to_return[offset + 3] = 255;
                 }
             }
         }
         Self {
             width,
             height,
-            data: to_return
+            data: to_return,
         }
     }
 }

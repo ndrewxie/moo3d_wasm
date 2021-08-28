@@ -4,7 +4,7 @@ pub mod gfx;
 pub mod rendermath;
 
 use gfx::{Color, Texture};
-use rendermath::{Vector, Matrix, Point3D, RenderMatrices};
+use rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 
 #[repr(C)]
 pub struct Camera {
@@ -18,7 +18,7 @@ pub struct Camera {
 pub enum Choice<A, B> {
     First(A),
     Second(B),
-} 
+}
 
 #[repr(C)]
 pub struct Renderer {
@@ -38,35 +38,35 @@ impl Renderer {
             width,
             height,
             camera: Camera::new(
-                Point3D::from_euc_coords(width as isize/2, height as isize/2, 0),
-                Point3D::from_euc_coords(width as isize/2, height as isize/2, 1),
+                Point3D::from_euc_coords(width as isize / 2, height as isize / 2, 0),
+                Point3D::from_euc_coords(width as isize / 2, height as isize / 2, 1),
                 near as isize,
                 far as isize,
-            )
+            ),
         }
     }
-	/*
+    /*
     pub fn clear(&mut self, color: &Color) {
-		let mut offset_base = 0;
+        let mut offset_base = 0;
         for indy in 0..self.height {
-			let mut offset = 4 * offset_base;
+            let mut offset = 4 * offset_base;
             for indx in 0..self.width {
-				self.pixels[offset] = color.r;
-				self.pixels[offset+1] = color.g;
-				self.pixels[offset+2] = color.b;
-				self.pixels[offset+3] = color.a;
-				self.z_buffer[offset_base + indx] = 100000.0;
+                self.pixels[offset] = color.r;
+                self.pixels[offset+1] = color.g;
+                self.pixels[offset+2] = color.b;
+                self.pixels[offset+3] = color.a;
+                self.z_buffer[offset_base + indx] = 100000.0;
 
-				offset += 4;
+                offset += 4;
             }
-			offset_base += self.width;
+            offset_base += self.width;
         }
     }
-	*/
-	pub fn clear(&mut self) {
-		self.pixels.fill(255);
-		self.z_buffer.fill(100000.0);
-	}
+    */
+    pub fn clear(&mut self) {
+        self.pixels.fill(255);
+        self.z_buffer.fill(100000.0);
+    }
     pub fn get_pixels(&self) -> &[u8] {
         &self.pixels
     }
@@ -79,7 +79,6 @@ impl Renderer {
     pub fn get_far(&self) -> isize {
         self.camera.far
     }
-    #[inline(always)]
     fn to_render(&self, x: isize, y: isize, z: Option<f32>) -> bool {
         if x < 0 || x >= self.width as isize {
             return false;
@@ -91,28 +90,34 @@ impl Renderer {
             let unwrapped = z.unwrap();
             if unwrapped > 1.0 || unwrapped < 0.0 {
                 return false;
-            }    
+            }
         }
         return true;
     }
-    #[inline(always)]
-    fn internal_write_pixel(&mut self, x: isize, y: isize, z: f32, color: &Color, respect_bounds: bool, respect_z: bool) {
+    fn internal_write_pixel(
+        &mut self,
+        x: isize,
+        y: isize,
+        z: f32,
+        color: &Color,
+        respect_bounds: bool,
+        respect_z: bool,
+    ) {
         if respect_bounds && !self.to_render(x, y, Some(z)) {
             return;
         }
-		let pixel_offset = y as usize * self.width + x as usize;
+        let pixel_offset = y as usize * self.width + x as usize;
         if respect_z && z >= self.z_buffer[pixel_offset] {
             return;
         }
 
         let offset = 4 * pixel_offset;
         self.pixels[offset] = color.r;
-        self.pixels[offset+1] = color.g;
-        self.pixels[offset+2] = color.b;
-        self.pixels[offset+3] = color.a;
+        self.pixels[offset + 1] = color.g;
+        self.pixels[offset + 2] = color.b;
+        self.pixels[offset + 3] = color.a;
         self.z_buffer[pixel_offset] = z;
     }
-    #[inline(always)]
     pub fn write_pixel(&mut self, x: isize, y: isize, z: f32, color: &Color) {
         self.internal_write_pixel(x, y, z, color, true, true);
     }
@@ -120,7 +125,7 @@ impl Renderer {
         let x1 = p1.x_coord();
         let y1 = p1.y_coord();
         let z1 = p1.z_coord_float();
-        
+
         let x2 = p2.x_coord();
         let y2 = p2.y_coord();
         let z2 = p2.z_coord_float();
@@ -130,16 +135,14 @@ impl Renderer {
         let step = {
             if dx.abs() >= dy.abs() {
                 dx.abs()
-            }
-            else {
+            } else {
                 dy.abs()
             }
         };
 
         if step == 0.0 {
             return;
-        }
-        else {
+        } else {
             dx /= step;
             dy /= step;
         }
@@ -149,12 +152,7 @@ impl Renderer {
         let mut i: usize = 1;
         while i <= step as usize {
             let t = (i - 1) as f32 / step;
-            self.write_pixel(
-                x as isize,
-                y as isize, 
-                z1 * (1.0 - t) + z2 * t,
-                color
-            );
+            self.write_pixel(x as isize, y as isize, z1 * (1.0 - t) + z2 * t, color);
             x += dx;
             y += dy;
             i += 1;
@@ -190,18 +188,29 @@ impl Renderer {
         let forward = self.camera.view();
         let reverse = self.camera.reverse();
 
-        let proj = RenderMatrices::split_points(
-            &reverse.matrix_mul(&forward.matrix_mul(&vertices))
-        );
+        let proj =
+            RenderMatrices::split_points(&reverse.matrix_mul(&forward.matrix_mul(&vertices)));
 
-        let p1 = (proj[0].x_coord(), proj[0].y_coord(), proj[0].z_coord_float());
-        let p2 = (proj[1].x_coord(), proj[1].y_coord(), proj[1].z_coord_float());
-        let p3 = (proj[2].x_coord(), proj[2].y_coord(), proj[2].z_coord_float());
+        let p1 = (
+            proj[0].x_coord(),
+            proj[0].y_coord(),
+            proj[0].z_coord_float(),
+        );
+        let p2 = (
+            proj[1].x_coord(),
+            proj[1].y_coord(),
+            proj[1].z_coord_float(),
+        );
+        let p3 = (
+            proj[2].x_coord(),
+            proj[2].y_coord(),
+            proj[2].z_coord_float(),
+        );
 
         let render1 = self.to_render(p1.0, p1.1, Some(p1.2));
         let render2 = self.to_render(p2.0, p2.1, Some(p2.2));
         let render3 = self.to_render(p3.0, p3.1, Some(p3.2));
-		let respect_bounds = !(render1 && render2 && render3);
+        let respect_bounds = !(render1 && render2 && render3);
         if (!render1) && (!render2) && (!render3) {
             return;
         }
@@ -210,39 +219,63 @@ impl Renderer {
         let min_y = cmp::min(cmp::min(p1.1, p2.1), p3.1);
         let max_x = cmp::max(cmp::max(p1.0, p2.0), p3.0);
         let max_y = cmp::max(cmp::max(p1.1, p2.1), p3.1);
-    
-		let (mut row_u, mut row_v, mut row_w, dudx, dvdx, dwdx, dudy, dvdy, dwdy) = RenderMatrices::barycentric_params(
-			min_x as f32, min_y as f32,
-            p1.0 as f32, p1.1 as f32,
-            p2.0 as f32, p2.1 as f32,
-            p3.0 as f32, p3.1 as f32,
-		);
-		for indy in min_y..max_y {
-			let mut column_u: f32 = 0.0;
-			let mut column_v: f32 = 0.0;
-			let mut column_w: f32 = 0.0;
+
+        let (mut row_u, mut row_v, mut row_w, dudx, dvdx, dwdx, dudy, dvdy, dwdy) =
+            RenderMatrices::barycentric_params(
+                min_x as f32,
+                min_y as f32,
+                p1.0 as f32,
+                p1.1 as f32,
+                p2.0 as f32,
+                p2.1 as f32,
+                p3.0 as f32,
+                p3.1 as f32,
+            );
+        for indy in min_y..max_y {
+            let mut column_u: f32 = 0.0;
+            let mut column_v: f32 = 0.0;
+            let mut column_w: f32 = 0.0;
             for indx in min_x..max_x {
-				let u = row_u + column_u;
-				let v = row_v + column_v;
-				let w = row_w + column_w;
+                let u = row_u + column_u;
+                let v = row_v + column_v;
+                let w = row_w + column_w;
                 if u >= 0.0 && v >= 0.0 && w >= 0.0 {
                     let z = Self::interp_barycentric(u, v, w, p1.2, p2.2, p3.2);
-                    self.internal_write_pixel(indx as isize, indy as isize, z, color, respect_bounds, true);
+                    self.internal_write_pixel(
+                        indx as isize,
+                        indy as isize,
+                        z,
+                        color,
+                        respect_bounds,
+                        true,
+                    );
                 }
-				column_u += dudx;
-				column_v += dvdx;
-				column_w += dwdx;
+                column_u += dudx;
+                column_v += dvdx;
+                column_w += dwdx;
             }
-			row_u += dudy;
-			row_v += dvdy;
-			row_w += dwdy;
+            row_u += dudy;
+            row_v += dvdy;
+            row_w += dwdy;
         }
     }
-    pub fn draw_quadface(&mut self, v1: &Point3D, v2: &Point3D, v3: &Point3D, v4: &Point3D, color: &Color) {
+    pub fn draw_quadface(
+        &mut self,
+        v1: &Point3D,
+        v2: &Point3D,
+        v3: &Point3D,
+        v4: &Point3D,
+        color: &Color,
+    ) {
         self.draw_triface(v1, v2, v3, &color);
         self.draw_triface(v1, v3, v4, &color);
     }
-    pub fn draw_cuboid(&mut self, position: &Point3D, orientation: &(f32, f32, f32), dimensions: &(usize, usize, usize)) {
+    pub fn draw_cuboid(
+        &mut self,
+        position: &Point3D,
+        orientation: &(f32, f32, f32),
+        dimensions: &(usize, usize, usize),
+    ) {
         let x = position.x_coord();
         let y = position.y_coord();
         let z = position.z_coord();
@@ -256,11 +289,12 @@ impl Renderer {
 
         let vertices = RenderMatrices::split_points(
             &RenderMatrices::rotation_3d(
-                *pitch, 
-                *roll, 
-                *yaw, 
-                Some(&(x as f32, y as f32, z as f32))
-            ).matrix_mul(&RenderMatrices::bundle_points(&[
+                *pitch,
+                *roll,
+                *yaw,
+                Some(&(x as f32, y as f32, z as f32)),
+            )
+            .matrix_mul(&RenderMatrices::bundle_points(&[
                 &Point3D::from_euc_coords(x - side_x, y - side_y, z + side_z), // 0
                 &Point3D::from_euc_coords(x + side_x, y - side_y, z + side_z), // 1
                 &Point3D::from_euc_coords(x + side_x, y + side_y, z + side_z), // 2
@@ -269,7 +303,7 @@ impl Renderer {
                 &Point3D::from_euc_coords(x + side_x, y - side_y, z - side_z), // 5
                 &Point3D::from_euc_coords(x + side_x, y + side_y, z - side_z), // 6
                 &Point3D::from_euc_coords(x - side_x, y + side_y, z - side_z), // 7
-            ]))
+            ])),
         );
 
         let c1 = Color::new(152, 52, 235, 255);
@@ -282,7 +316,7 @@ impl Renderer {
 
         self.draw_quadface(&vertices[0], &vertices[1], &vertices[2], &vertices[3], &c1);
         self.draw_quadface(&vertices[4], &vertices[5], &vertices[6], &vertices[7], &c2);
-        
+
         self.draw_quadface(&vertices[2], &vertices[6], &vertices[5], &vertices[1], &c3);
         self.draw_quadface(&vertices[0], &vertices[3], &vertices[7], &vertices[4], &c4);
 
@@ -329,14 +363,22 @@ impl Camera {
             vec![right.get(0), up.get(0), forward.get(0), 0.0],
             vec![right.get(1), up.get(1), forward.get(1), 0.0],
             vec![right.get(2), up.get(2), forward.get(2), 0.0],
-            vec![0.0,          0.0,       0.0,            1.0],
+            vec![0.0, 0.0, 0.0, 1.0],
         ]);
 
-        let translation_matrix = RenderMatrices::translation(-1.0 * (self.position.x_coord() as f32), -1.0 * (self.position.y_coord() as f32), -1.0 * (self.position.z_coord() as f32));
+        let translation_matrix = RenderMatrices::translation(
+            -1.0 * (self.position.x_coord() as f32),
+            -1.0 * (self.position.y_coord() as f32),
+            -1.0 * (self.position.z_coord() as f32),
+        );
 
         projection_matrix.matrix_mul(&coord_matrix.matrix_mul(&translation_matrix))
     }
     pub fn reverse(&self) -> Matrix {
-        RenderMatrices::translation(self.position.x_coord() as f32, self.position.y_coord() as f32, 0.0)
+        RenderMatrices::translation(
+            self.position.x_coord() as f32,
+            self.position.y_coord() as f32,
+            0.0,
+        )
     }
 }
