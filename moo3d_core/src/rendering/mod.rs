@@ -45,24 +45,6 @@ impl Renderer {
             ),
         }
     }
-    /*
-    pub fn clear(&mut self, color: &Color) {
-        let mut offset_base = 0;
-        for indy in 0..self.height {
-            let mut offset = 4 * offset_base;
-            for indx in 0..self.width {
-                self.pixels[offset] = color.r;
-                self.pixels[offset+1] = color.g;
-                self.pixels[offset+2] = color.b;
-                self.pixels[offset+3] = color.a;
-                self.z_buffer[offset_base + indx] = 100000.0;
-
-                offset += 4;
-            }
-            offset_base += self.width;
-        }
-    }
-    */
     pub fn clear(&mut self) {
         self.pixels.fill(255);
         self.z_buffer.fill(100000.0);
@@ -182,6 +164,23 @@ impl Renderer {
         let to_return = (1.0 / value_a) * u + (1.0 / value_b) * v + (1.0 / value_c) * w;
         1.0 / to_return
     }
+    #[inline(always)]
+    // Solves for the range of x-coordinates (euclidean) to make points in the triangle
+    // Call it once for each of the 3 barycentric coordinates (u, v, w)
+    // a is the current row's barycentric coordinate, b is the RECIPROCAL of du/dx, or dv/dx, or
+    // dw/dx
+    fn solve_bary_range(lower: &mut Option<f32>, upper: &mut Option<f32>, a: f32, b: f32) {
+        let calculated = -a * b;
+        if b >= 0.0 {
+            if lower.is_none() || lower.unwrap() < calculated {
+                *lower = Some(calculated);
+            }
+        } else {
+            if upper.is_none() || upper.unwrap() > calculated {
+                *upper = Some(calculated);
+            }
+        }
+    }
     pub fn draw_triface(&mut self, v1: &Point3D, v2: &Point3D, v3: &Point3D, color: &Color) {
         let vertices = RenderMatrices::bundle_points(&[v1, v2, v3]);
 
@@ -217,7 +216,6 @@ impl Renderer {
 
         let min_x = cmp::min(cmp::min(p1.0, p2.0), p3.0);
         let min_y = cmp::min(cmp::min(p1.1, p2.1), p3.1);
-        let max_x = cmp::max(cmp::max(p1.0, p2.0), p3.0);
         let max_y = cmp::max(cmp::max(p1.1, p2.1), p3.1);
 
         let (mut row_u, mut row_v, mut row_w, dudx, dvdx, dwdx, dudy, dvdy, dwdy) =
@@ -231,25 +229,26 @@ impl Renderer {
                 p3.0 as f32,
                 p3.1 as f32,
             );
+        let inv_dudx = 1.0 / dudx;
+        let inv_dvdx = 1.0 / dvdx;
+        let inv_dwdx = 1.0 / dwdx;
+
         for indy in min_y..max_y {
-            let mut column_u: f32 = 0.0;
-            let mut column_v: f32 = 0.0;
-            let mut column_w: f32 = 0.0;
-            for indx in min_x..max_x {
-                let u = row_u + column_u;
-                let v = row_v + column_v;
-                let w = row_w + column_w;
-                if u >= 0.0 && v >= 0.0 && w >= 0.0 {
-                    let z = Self::interp_barycentric(u, v, w, p1.2, p2.2, p3.2);
-                    self.internal_write_pixel(
-                        indx as isize,
-                        indy as isize,
-                        z,
-                        color,
-                        respect_bounds,
-                        true,
-                    );
-                }
+            let (x_start, x_end) = {
+                let mut low: Option<f32> = None;
+                let mut high: Option<f32> = None;
+                Self::solve_bary_range(&mut low, &mut high, row_u, inv_dudx);
+                Self::solve_bary_range(&mut low, &mut high, row_v, inv_dvdx);
+                Self::solve_bary_range(&mut low, &mut high, row_w, inv_dwdx);
+                (low.unwrap() as isize, (high.unwrap() + 0.5) as isize)
+            };
+            let mut column_u: f32 = dudx * (x_start as f32);
+            let mut column_v: f32 = dvdx * (x_start as f32);
+            let mut column_w: f32 = dwdx * (x_start as f32);
+
+            for indx in x_start..x_end {
+                let z = Self::interp_barycentric(row_u + column_u, row_v + column_v, row_w + column_w, p1.2, p2.2, p3.2);
+                self.internal_write_pixel(indx + min_x, indy, z, color, respect_bounds, true);
                 column_u += dudx;
                 column_v += dvdx;
                 column_w += dwdx;

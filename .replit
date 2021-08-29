@@ -1,1 +1,1 @@
-run = "rustup toolchain add stable && rustup target add wasm32-unknown-unknown && make && python3 -m http.server -d ./client"
+run = "rustup toolchain add stable && rustup target add wasm32-unknown-unknown && make"

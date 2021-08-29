@@ -2,6 +2,7 @@ all:
 	clear
 	cargo build --target wasm32-unknown-unknown --release
 	cp ./target/wasm32-unknown-unknown/release/moo3d_wasm.wasm ./client/moo3d_wasm.wasm
+	python3 -m http.server -d ./client/	
 
 test:
 	clear
