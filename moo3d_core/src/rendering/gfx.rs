@@ -17,14 +17,15 @@ impl Color {
 
 pub struct Texture {
     data: Vec<Color>,
-    width: usize,
-    height: usize,
+    width: isize,
+    height: isize,
+    max: isize,
 }
 impl Texture {
     pub fn checkerboard() -> Self {
-        let width = 120;
-        let height = 120;
-        let mut to_return = Vec::with_capacity(width * height);
+        let width: isize = 120;
+        let height: isize = 120;
+        let mut to_return = Vec::with_capacity((width * height) as usize);
         for indy in 0..height {
             for indx in 0..width {
                 let x = indx as usize / 30;
@@ -41,18 +42,15 @@ impl Texture {
             width,
             height,
             data: to_return,
+            max: (width * height) as isize,
         }
     }
+    #[inline(never)]
     pub fn sample(&self, u: f32, v: f32) -> &Color {
-        let clamped_u = cmp::max(
-            cmp::min(self.width - 1, (self.width as f32 * u + 0.5) as usize),
-            0,
-        );
-        let clamped_v = cmp::max(
-            cmp::min(self.height - 1, (self.height as f32 * v + 0.5) as usize),
-            0,
-        );
-
-        unsafe { &self.data.get_unchecked(clamped_v * self.width + clamped_u) }
+        let mut indx = (self.height as f32 * v + 0.5) as isize * self.width + (self.width as f32 * u + 0.5) as isize;
+        if (indx < 0) | (indx >= self.max) {
+            indx = 0;
+        }
+        unsafe { &self.data.get_unchecked(indx as usize) }
     }
 }
