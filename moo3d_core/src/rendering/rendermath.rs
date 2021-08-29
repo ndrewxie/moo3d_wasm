@@ -210,15 +210,15 @@ impl Point3D {
 
     #[inline(always)]
     pub fn x_coord(&self) -> isize {
-        self.get(0) as isize
+        (self.get(0) + 0.5) as isize
     }
     #[inline(always)]
     pub fn y_coord(&self) -> isize {
-        self.get(1) as isize
+        (self.get(1) + 0.5) as isize
     }
     #[inline(always)]
     pub fn z_coord(&self) -> isize {
-        self.get(2) as isize
+        (self.get(2) + 0.5) as isize
     }
     #[inline(always)]
     pub fn set_x_coord(&mut self, input: isize) {

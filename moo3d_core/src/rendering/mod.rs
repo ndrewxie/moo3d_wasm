@@ -89,16 +89,23 @@ impl Renderer {
             return;
         }
         let pixel_offset = y as usize * self.width + x as usize;
-        if respect_z && z >= self.z_buffer[pixel_offset] {
-            return;
+
+        unsafe {
+            if respect_z && z >= *self.z_buffer.get_unchecked(pixel_offset) {
+                return;
+            }
         }
 
         let offset = 4 * pixel_offset;
-        self.pixels[offset] = color.r;
-        self.pixels[offset + 1] = color.g;
-        self.pixels[offset + 2] = color.b;
-        self.pixels[offset + 3] = color.a;
-        self.z_buffer[pixel_offset] = z;
+        unsafe {
+            let pixel_slice = self.pixels.as_mut_slice();
+            *pixel_slice.get_unchecked_mut(offset) = color.r;
+            *pixel_slice.get_unchecked_mut(offset + 1) = color.g;
+            *pixel_slice.get_unchecked_mut(offset + 2) = color.b;
+            *pixel_slice.get_unchecked_mut(offset + 3) = color.a;
+
+            *self.z_buffer.get_unchecked_mut(pixel_offset) = z;
+        }
     }
     pub fn write_pixel(&mut self, x: isize, y: isize, z: f32, color: &Color) {
         self.internal_write_pixel(x, y, z, color, true, true);
@@ -169,15 +176,15 @@ impl Renderer {
     // Call it once for each of the 3 barycentric coordinates (u, v, w)
     // a is the current row's barycentric coordinate, b is the RECIPROCAL of du/dx, or dv/dx, or
     // dw/dx
-    fn solve_bary_range(lower: &mut Option<f32>, upper: &mut Option<f32>, a: f32, b: f32) {
+    fn solve_bary_range(lower: &mut f32, upper: &mut f32, a: f32, b: f32) {
         let calculated = -a * b;
         if b >= 0.0 {
-            if lower.is_none() || lower.unwrap() < calculated {
-                *lower = Some(calculated);
+            if *lower < calculated {
+                *lower = calculated;
             }
         } else {
-            if upper.is_none() || upper.unwrap() > calculated {
-                *upper = Some(calculated);
+            if *upper > calculated {
+                *upper = calculated;
             }
         }
     }
@@ -216,6 +223,7 @@ impl Renderer {
 
         let min_x = cmp::min(cmp::min(p1.0, p2.0), p3.0);
         let min_y = cmp::min(cmp::min(p1.1, p2.1), p3.1);
+        let max_x = cmp::max(cmp::max(p1.0, p2.0), p3.0);
         let max_y = cmp::max(cmp::max(p1.1, p2.1), p3.1);
 
         let (mut row_u, mut row_v, mut row_w, dudx, dvdx, dwdx, dudy, dvdy, dwdy) =
@@ -235,12 +243,12 @@ impl Renderer {
 
         for indy in min_y..max_y {
             let (x_start, x_end) = {
-                let mut low: Option<f32> = None;
-                let mut high: Option<f32> = None;
+                let mut low = 0.0;
+                let mut high = (max_x - min_x) as f32;
                 Self::solve_bary_range(&mut low, &mut high, row_u, inv_dudx);
                 Self::solve_bary_range(&mut low, &mut high, row_v, inv_dvdx);
                 Self::solve_bary_range(&mut low, &mut high, row_w, inv_dwdx);
-                (low.unwrap() as isize, (high.unwrap() + 0.5) as isize)
+                (low as isize, (high + 0.5) as isize)
             };
             let mut column_u: f32 = dudx * (x_start as f32);
             let mut column_v: f32 = dvdx * (x_start as f32);
