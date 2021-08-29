@@ -149,11 +149,15 @@ impl Matrix {
     }
     #[inline(always)]
     pub fn get(&self, x: usize, y: usize) -> f32 {
-        self.elements[y * self.width + x]
+        unsafe {
+            *self.elements.get_unchecked(y * self.width + x)
+        }
     }
     #[inline(always)]
     pub fn set(&mut self, x: usize, y: usize, val: f32) {
-        self.elements[y * self.width + x] = val;
+        unsafe {
+            *self.elements.get_unchecked_mut(y * self.width + x) = val;
+        }
     }
     pub fn vector_mul(&self, rhs: &Vector) -> Vector {
         assert_eq!(self.width, rhs.dims);
