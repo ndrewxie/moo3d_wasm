@@ -76,22 +76,11 @@ impl Renderer {
         }
         return true;
     }
-    fn internal_write_pixel(
-        &mut self,
-        x: isize,
-        y: isize,
-        z: f32,
-        color: &Color,
-        respect_bounds: bool,
-        respect_z: bool,
-    ) {
-        if respect_bounds && !self.to_render(x, y, Some(z)) {
-            return;
-        }
+    fn write_pixel_unchecked(&mut self, x: isize, y: isize, z: f32, color: &Color) {
         let pixel_offset = y as usize * self.width + x as usize;
 
         unsafe {
-            if respect_z && z >= *self.z_buffer.get_unchecked(pixel_offset) {
+            if z >= *self.z_buffer.get_unchecked(pixel_offset) {
                 return;
             }
         }
@@ -108,7 +97,10 @@ impl Renderer {
         }
     }
     pub fn write_pixel(&mut self, x: isize, y: isize, z: f32, color: &Color) {
-        self.internal_write_pixel(x, y, z, color, true, true);
+        if !self.to_render(x, y, Some(z)) {
+            return;
+        }
+        self.write_pixel_unchecked(x, y, z, color);
     }
     pub fn write_line(&mut self, p1: &Point3D, p2: &Point3D, color: &Color) {
         let x1 = p1.x_coord();
@@ -167,9 +159,24 @@ impl Renderer {
             }
         }
     }
-    fn interp_barycentric(u: f32, v: f32, w: f32, value_a: f32, value_b: f32, value_c: f32) -> f32 {
-        let to_return = (1.0 / value_a) * u + (1.0 / value_b) * v + (1.0 / value_c) * w;
-        1.0 / to_return
+    fn barycentric_interp_params(z_a: f32, z_b: f32, z_c: f32) -> (f32, f32, f32) {
+        (1.0 / z_a, 1.0 / z_b, 1.0 / z_c)
+    }
+    fn interp_barycentric_z(params: &(f32, f32, f32), u: f32, v: f32, w: f32) -> f32 {
+        1.0 / (params.0 * u + params.1 * v + params.2 * w)
+    }
+    fn interp_barycentric(
+        params: &(f32, f32, f32),
+        u: f32,
+        v: f32,
+        w: f32,
+        z: f32,
+        v_a: f32,
+        v_b: f32,
+        v_c: f32,
+    ) -> f32 {
+        let to_return = v_a * params.0 * u + v_b * params.1 * v + v_c * params.2 * w;
+        to_return * z
     }
     #[inline(always)]
     // Solves for the range of x-coordinates (euclidean) to make points in the triangle
@@ -188,7 +195,15 @@ impl Renderer {
             }
         }
     }
-    pub fn draw_triface(&mut self, v1: &Point3D, v2: &Point3D, v3: &Point3D, color: &Color) {
+    pub fn draw_triface(
+        &mut self,
+        v1: &Point3D,
+        v2: &Point3D,
+        v3: &Point3D,
+        texture: (f32, f32, f32, f32, f32, f32, &Texture),
+    ) {
+        let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex) = texture;
+
         let vertices = RenderMatrices::bundle_points(&[v1, v2, v3]);
 
         let forward = self.camera.view();
@@ -216,15 +231,20 @@ impl Renderer {
         let render1 = self.to_render(p1.0, p1.1, Some(p1.2));
         let render2 = self.to_render(p2.0, p2.1, Some(p2.2));
         let render3 = self.to_render(p3.0, p3.1, Some(p3.2));
-        let respect_bounds = !(render1 && render2 && render3);
         if (!render1) && (!render2) && (!render3) {
             return;
         }
 
-        let min_x = cmp::min(cmp::min(p1.0, p2.0), p3.0);
-        let min_y = cmp::min(cmp::min(p1.1, p2.1), p3.1);
-        let max_x = cmp::max(cmp::max(p1.0, p2.0), p3.0);
-        let max_y = cmp::max(cmp::max(p1.1, p2.1), p3.1);
+        let min_x = cmp::max(0, cmp::min(cmp::min(p1.0, p2.0), p3.0));
+        let min_y = cmp::max(0, cmp::min(cmp::min(p1.1, p2.1), p3.1));
+        let max_x = cmp::min(
+            self.width as isize - 1,
+            cmp::max(cmp::max(p1.0, p2.0), p3.0),
+        );
+        let max_y = cmp::min(
+            self.height as isize - 1,
+            cmp::max(cmp::max(p1.1, p2.1), p3.1),
+        );
 
         let (mut row_u, mut row_v, mut row_w, dudx, dvdx, dwdx, dudy, dvdy, dwdy) =
             RenderMatrices::barycentric_params(
@@ -241,6 +261,8 @@ impl Renderer {
         let inv_dvdx = 1.0 / dvdx;
         let inv_dwdx = 1.0 / dwdx;
 
+        let bary_interp_params = Self::barycentric_interp_params(p1.2, p2.2, p3.2);
+
         for indy in min_y..max_y {
             let (x_start, x_end) = {
                 let mut low = 0.0;
@@ -255,8 +277,34 @@ impl Renderer {
             let mut column_w: f32 = dwdx * (x_start as f32);
 
             for indx in x_start..x_end {
-                let z = Self::interp_barycentric(row_u + column_u, row_v + column_v, row_w + column_w, p1.2, p2.2, p3.2);
-                self.internal_write_pixel(indx + min_x, indy, z, color, respect_bounds, true);
+                let u = row_u + column_u;
+                let v = row_v + column_v;
+                let w = row_w + column_w;
+
+                let interp_z = Self::interp_barycentric_z(&bary_interp_params, u, v, w);
+                let tcx = Self::interp_barycentric(
+                    &bary_interp_params,
+                    u,
+                    v,
+                    w,
+                    interp_z,
+                    tc1x,
+                    tc2x,
+                    tc3x,
+                );
+                let tcy = Self::interp_barycentric(
+                    &bary_interp_params,
+                    u,
+                    v,
+                    w,
+                    interp_z,
+                    tc1y,
+                    tc2y,
+                    tc3y,
+                );
+
+                self.write_pixel_unchecked(indx + min_x, indy, interp_z, tex.sample(tcx, tcy));
+
                 column_u += dudx;
                 column_v += dvdx;
                 column_w += dwdx;
@@ -272,10 +320,11 @@ impl Renderer {
         v2: &Point3D,
         v3: &Point3D,
         v4: &Point3D,
-        color: &Color,
+        fill: (f32, f32, f32, f32, f32, f32, f32, f32, &Texture),
     ) {
-        self.draw_triface(v1, v2, v3, &color);
-        self.draw_triface(v1, v3, v4, &color);
+        let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tc4x, tc4y, tex) = fill;
+        self.draw_triface(v1, v2, v3, (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex));
+        self.draw_triface(v1, v3, v4, (tc1x, tc1y, tc3x, tc3y, tc4x, tc4y, tex));
     }
     pub fn draw_cuboid(
         &mut self,
@@ -313,22 +362,52 @@ impl Renderer {
             ])),
         );
 
-        let c1 = Color::new(152, 52, 235, 255);
-        let c2 = Color::new(255, 0, 0, 255);
-        let c3 = Color::new(0, 255, 0, 255);
-        let c4 = Color::new(0, 0, 255, 255);
-        let c5 = Color::new(255, 255, 0, 255);
-        let c6 = Color::new(0, 255, 255, 255);
-        let c7 = Color::new(255, 0, 255, 255);
+        let texture = Texture::checkerboard();
 
-        self.draw_quadface(&vertices[0], &vertices[1], &vertices[2], &vertices[3], &c1);
-        self.draw_quadface(&vertices[4], &vertices[5], &vertices[6], &vertices[7], &c2);
+        self.draw_quadface(
+            &vertices[0],
+            &vertices[1],
+            &vertices[2],
+            &vertices[3],
+            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+        );
+        self.draw_quadface(
+            &vertices[4],
+            &vertices[5],
+            &vertices[6],
+            &vertices[7],
+            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+        );
 
-        self.draw_quadface(&vertices[2], &vertices[6], &vertices[5], &vertices[1], &c3);
-        self.draw_quadface(&vertices[0], &vertices[3], &vertices[7], &vertices[4], &c4);
+        self.draw_quadface(
+            &vertices[2],
+            &vertices[6],
+            &vertices[5],
+            &vertices[1],
+            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+        );
+        self.draw_quadface(
+            &vertices[0],
+            &vertices[3],
+            &vertices[7],
+            &vertices[4],
+            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+        );
 
-        self.draw_quadface(&vertices[0], &vertices[1], &vertices[5], &vertices[4], &c5);
-        self.draw_quadface(&vertices[3], &vertices[2], &vertices[6], &vertices[7], &c6);
+        self.draw_quadface(
+            &vertices[0],
+            &vertices[1],
+            &vertices[5],
+            &vertices[4],
+            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+        );
+        self.draw_quadface(
+            &vertices[3],
+            &vertices[2],
+            &vertices[6],
+            &vertices[7],
+            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+        );
     }
 }
 

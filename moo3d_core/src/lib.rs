@@ -34,37 +34,37 @@ impl GameState {
         self.renderer.clear();
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize, center_y as isize, 5 * near),
-            &(0.0, 0.0, 0.0),
+            &(angle, 0.0, -angle),
             &(near as usize, near as usize, near as usize),
         );
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize + near, center_y as isize, 5 * near),
-            &(0.0, 0.0, 0.0),
+            &(angle, 0.0, -angle),
             &(near as usize, near as usize, near as usize),
         );
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize - near, center_y as isize, 5 * near),
-            &(0.0, 0.0, 0.0),
+            &(angle, 0.0, -angle),
             &(near as usize, near as usize, near as usize),
         );
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize + near, center_y as isize + near, 5 * near),
-            &(0.0, 0.0, 0.0),
+            &(angle, 0.0, -angle),
             &(near as usize, near as usize, near as usize),
         );
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize - near, center_y as isize + near, 5 * near),
-            &(0.0, 0.0, 0.0),
+            &(angle, 0.0, -angle),
             &(near as usize, near as usize, near as usize),
         );
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize + near, center_y as isize - near, 5 * near),
-            &(0.0, 0.0, 0.0),
+            &(angle, 0.0, -angle),
             &(near as usize, near as usize, near as usize),
         );
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize - near, center_y as isize - near, 5 * near),
-            &(0.0, 0.0, 0.0),
+            &(angle, 0.0, -angle),
             &(near as usize, near as usize, near as usize),
         );
     }
