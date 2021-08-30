@@ -30,31 +30,15 @@ impl GameState {
         let near = self.renderer.get_near() as isize;
 
         self.renderer.clear();
-        self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(center_x as isize, center_y as isize, 5 * near),
-            &(0.0, 0.0, 0.0),
-            &(near as usize, near as usize, near as usize),
-        );
-        self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(center_x as isize + near, center_y as isize, 5 * near),
-            &(0.0, 0.0, 0.0),
-            &(near as usize, near as usize, near as usize),
-        );
-        self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(center_x as isize + 2 * near, center_y as isize, 5 * near),
-            &(0.0, 0.0, 0.0),
-            &(near as usize, near as usize, near as usize),
-        );
-        self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(center_x as isize - near, center_y as isize, 5 * near),
-            &(0.0, 0.0, 0.0),
-            &(near as usize, near as usize, near as usize),
-        );
-        self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(center_x as isize - 2 * near, center_y as isize, 5 * near),
-            &(0.0, 0.0, 0.0),
-            &(near as usize, near as usize, near as usize),
-        );
+        for i in -5..5 {
+            for j in -3..3 {
+                self.renderer.draw_cuboid(
+                    &Point3D::from_euc_coords(center_x as isize + near * i, center_y as isize + near * j, 5 * near),
+                    &(0.0, 0.0, 0.0),
+                    &(near as usize, near as usize, near as usize),
+                );
+            }
+        }
     }
     pub fn translate_camera(&mut self, trans_x: isize, trans_y: isize, trans_z: isize) {
         self.renderer.camera.translate(trans_x, trans_y, trans_z);

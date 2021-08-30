@@ -76,7 +76,7 @@ impl Renderer {
         }
         return true;
     }
-    fn write_pixel_unchecked(&mut self, x: isize, y: isize, z: f32, color: &Color) {
+    fn write_pixel_unchecked(&mut self, x: isize, y: isize, z: f32, color: Color) {
         let pixel_offset = y as usize * self.width + x as usize;
 
         unsafe {
@@ -96,13 +96,13 @@ impl Renderer {
             *self.z_buffer.get_unchecked_mut(pixel_offset) = z;
         }
     }
-    pub fn write_pixel(&mut self, x: isize, y: isize, z: f32, color: &Color) {
+    pub fn write_pixel(&mut self, x: isize, y: isize, z: f32, color: Color) {
         if !self.to_render(x, y, Some(z)) {
             return;
         }
         self.write_pixel_unchecked(x, y, z, color);
     }
-    pub fn write_line(&mut self, p1: &Point3D, p2: &Point3D, color: &Color) {
+    pub fn write_line(&mut self, p1: &Point3D, p2: &Point3D, color: Color) {
         let x1 = p1.x_coord();
         let y1 = p1.y_coord();
         let z1 = p1.z_coord_float();
@@ -141,7 +141,7 @@ impl Renderer {
     }
     // write_square is always at top z_indx cuz it's just a debugging function
     // Also I'm too lazy to write 2 lines to do interp
-    pub fn write_square(&mut self, p: &Point3D, sidelen: isize, color: &Color) {
+    pub fn write_square(&mut self, p: &Point3D, sidelen: isize, color: Color) {
         let x = p.x_coord();
         let y = p.y_coord();
         let z = p.z_coord_float();

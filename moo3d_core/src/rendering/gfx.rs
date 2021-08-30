@@ -45,8 +45,7 @@ impl Texture {
             data: to_return,
         }
     }
-    #[inline(never)]
-    pub fn sample(&self, u: f32, v: f32) -> &Color {
+    pub fn sample(&self, u: f32, v: f32) -> Color {
         /*
         unsafe {
             &self.data.get_unchecked((
@@ -55,7 +54,7 @@ impl Texture {
         }
         */
         unsafe {
-            &self.data.get_unchecked(
+            *self.data.get_unchecked(
                 (FTEXTURE_SIZE * v.trunc() + u).clamp(0.0, FTEXTURE_LEN) as usize
             )
         }
