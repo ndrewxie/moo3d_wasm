@@ -47,6 +47,7 @@ impl Texture {
         }
     }
     pub fn sample(&self, u: f32, v: f32) -> Color {
+        /*
         unsafe {
             *self.data.get_unchecked(
                 cmp::min(
@@ -57,6 +58,12 @@ impl Texture {
                     )
                 ) as usize
             )
+        }
+        */
+        unsafe {
+            *self.data.get_unchecked((
+                (FTEXTURE_SIZE * v.trunc() + u).to_int_unchecked::<isize>() & TEXTURE_LEN
+            ) as usize)
         }
     }
 }
