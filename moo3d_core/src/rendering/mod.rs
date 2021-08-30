@@ -178,7 +178,6 @@ impl Renderer {
         let to_return = v_a * params.0 * u + v_b * params.1 * v + v_c * params.2 * w;
         to_return * z
     }
-    #[inline(always)]
     // Solves for the range of x-coordinates (euclidean) to make points in the triangle
     // Call it once for each of the 3 barycentric coordinates (u, v, w)
     // a is the current row's barycentric coordinate, b is the RECIPROCAL of du/dx, or dv/dx, or

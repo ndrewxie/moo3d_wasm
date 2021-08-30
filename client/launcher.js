@@ -55,6 +55,7 @@ function launch_init() {
 
     gameCanvas.style.width = '' + width + 'px';
     gameCanvas.style.height = '' + height + 'px';
+    
     gameCanvas.height = height;
     gameCanvas.width = width;
 

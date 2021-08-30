@@ -17,9 +17,9 @@ impl Color {
 
 pub struct Texture {
     data: Vec<Color>,
-    width: isize,
-    height: isize,
-    max: isize,
+    width: f32,
+    height: f32,
+    max: f32,
 }
 impl Texture {
     pub fn checkerboard() -> Self {
@@ -39,18 +39,14 @@ impl Texture {
             }
         }
         Self {
-            width,
-            height,
+            width: width as f32,
+            height: height as f32,
             data: to_return,
-            max: (width * height) as isize,
+            max: (width * height) as f32,
         }
     }
-    #[inline(never)]
     pub fn sample(&self, u: f32, v: f32) -> &Color {
-        let mut indx = (self.height as f32 * v + 0.5) as isize * self.width + (self.width as f32 * u + 0.5) as isize;
-        if (indx < 0) | (indx >= self.max) {
-            indx = 0;
-        }
-        unsafe { &self.data.get_unchecked(indx as usize) }
+        let indx = (self.height * v).round() * self.width + (self.width * u).round();
+        unsafe { &self.data.get_unchecked(indx.clamp(0.0, self.max-1.0) as usize) }
     }
 }
