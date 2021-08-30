@@ -24,8 +24,6 @@ impl GameState {
         self.renderer.get_mut_pixels()
     }
     pub fn render(&mut self, curr_time: usize) {
-        let angle = (curr_time / 50) as f32 * std::f32::consts::PI / 180.0;
-
         let center_x = self.renderer.width / 2;
         let center_y = self.renderer.height / 2;
 
@@ -34,37 +32,27 @@ impl GameState {
         self.renderer.clear();
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize, center_y as isize, 5 * near),
-            &(angle, 0.0, -angle),
+            &(0.0, 0.0, 0.0),
             &(near as usize, near as usize, near as usize),
         );
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize + near, center_y as isize, 5 * near),
-            &(angle, 0.0, -angle),
+            &(0.0, 0.0, 0.0),
+            &(near as usize, near as usize, near as usize),
+        );
+        self.renderer.draw_cuboid(
+            &Point3D::from_euc_coords(center_x as isize + 2 * near, center_y as isize, 5 * near),
+            &(0.0, 0.0, 0.0),
             &(near as usize, near as usize, near as usize),
         );
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize - near, center_y as isize, 5 * near),
-            &(angle, 0.0, -angle),
+            &(0.0, 0.0, 0.0),
             &(near as usize, near as usize, near as usize),
         );
         self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(center_x as isize + near, center_y as isize + near, 5 * near),
-            &(angle, 0.0, -angle),
-            &(near as usize, near as usize, near as usize),
-        );
-        self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(center_x as isize - near, center_y as isize + near, 5 * near),
-            &(angle, 0.0, -angle),
-            &(near as usize, near as usize, near as usize),
-        );
-        self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(center_x as isize + near, center_y as isize - near, 5 * near),
-            &(angle, 0.0, -angle),
-            &(near as usize, near as usize, near as usize),
-        );
-        self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(center_x as isize - near, center_y as isize - near, 5 * near),
-            &(angle, 0.0, -angle),
+            &Point3D::from_euc_coords(center_x as isize - 2 * near, center_y as isize, 5 * near),
+            &(0.0, 0.0, 0.0),
             &(near as usize, near as usize, near as usize),
         );
     }

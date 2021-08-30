@@ -3,7 +3,7 @@ use std::cmp;
 pub mod gfx;
 pub mod rendermath;
 
-use gfx::{Color, Texture};
+use gfx::{Color, Texture, MTEXCOORD};
 use rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 
 #[repr(C)]
@@ -368,14 +368,14 @@ impl Renderer {
             &vertices[1],
             &vertices[2],
             &vertices[3],
-            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
         );
         self.draw_quadface(
             &vertices[4],
             &vertices[5],
             &vertices[6],
             &vertices[7],
-            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
         );
 
         self.draw_quadface(
@@ -383,14 +383,14 @@ impl Renderer {
             &vertices[6],
             &vertices[5],
             &vertices[1],
-            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
         );
         self.draw_quadface(
             &vertices[0],
             &vertices[3],
             &vertices[7],
             &vertices[4],
-            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
         );
 
         self.draw_quadface(
@@ -398,14 +398,14 @@ impl Renderer {
             &vertices[1],
             &vertices[5],
             &vertices[4],
-            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
         );
         self.draw_quadface(
             &vertices[3],
             &vertices[2],
             &vertices[6],
             &vertices[7],
-            (0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, &texture),
+            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
         );
     }
 }

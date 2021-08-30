@@ -1,5 +1,13 @@
 use std::cmp;
 
+pub const TEXTURE_SIZE: isize = 128;
+pub const MTEXCOORD: f32 = (TEXTURE_SIZE - 1) as f32;
+
+const FTEXTURE_LEN: f32 = TEXTURE_SIZE as f32 * MTEXCOORD + MTEXCOORD;
+const FTEXTURE_SIZE: f32 = TEXTURE_SIZE as f32; 
+
+//const TEXTURE_MASK: isize = TEXTURE_SIZE - 1;
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct Color {
@@ -17,19 +25,14 @@ impl Color {
 
 pub struct Texture {
     data: Vec<Color>,
-    width: f32,
-    height: f32,
-    max: f32,
 }
 impl Texture {
     pub fn checkerboard() -> Self {
-        let width: isize = 120;
-        let height: isize = 120;
-        let mut to_return = Vec::with_capacity((width * height) as usize);
-        for indy in 0..height {
-            for indx in 0..width {
-                let x = indx as usize / 30;
-                let y = indy as usize / 30;
+        let mut to_return = Vec::with_capacity((TEXTURE_SIZE * TEXTURE_SIZE) as usize);
+        for indy in 0..TEXTURE_SIZE {
+            for indx in 0..TEXTURE_SIZE {
+                let x = indx / 32;
+                let y = indy / 32;
 
                 if (x + y) % 2 == 0 {
                     to_return.push(Color::new(0, 0, 0, 255));
@@ -39,14 +42,22 @@ impl Texture {
             }
         }
         Self {
-            width: width as f32,
-            height: height as f32,
             data: to_return,
-            max: (width * height) as f32,
         }
     }
+    #[inline(never)]
     pub fn sample(&self, u: f32, v: f32) -> &Color {
-        let indx = (self.height * v).round() * self.width + (self.width * u).round();
-        unsafe { &self.data.get_unchecked(indx.clamp(0.0, self.max-1.0) as usize) }
+        /*
+        unsafe {
+            &self.data.get_unchecked((
+                (v & TEXTURE_MASK) * TEXTURE_SIZE + (u & TEXTURE_MASK)
+            ) as usize)
+        }
+        */
+        unsafe {
+            &self.data.get_unchecked(
+                (FTEXTURE_SIZE * v.trunc() + u).clamp(0.0, FTEXTURE_LEN) as usize
+            )
+        }
     }
 }
