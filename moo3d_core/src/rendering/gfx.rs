@@ -1,10 +1,11 @@
 use std::cmp;
 
 pub const TEXTURE_SIZE: isize = 128;
-pub const MTEXCOORD: f32 = (TEXTURE_SIZE - 1) as f32;
+const MAX_TEXTURE_COORD: isize = TEXTURE_SIZE - 1;
+const TEXTURE_LEN: isize = TEXTURE_SIZE * MAX_TEXTURE_COORD + MAX_TEXTURE_COORD;
+const FTEXTURE_SIZE: f32 = TEXTURE_SIZE as f32;
 
-const FTEXTURE_LEN: f32 = TEXTURE_SIZE as f32 * MTEXCOORD + MTEXCOORD;
-const FTEXTURE_SIZE: f32 = TEXTURE_SIZE as f32; 
+pub const MTEXCOORD: f32 = MAX_TEXTURE_COORD as f32;
 
 //const TEXTURE_MASK: isize = TEXTURE_SIZE - 1;
 
@@ -46,16 +47,15 @@ impl Texture {
         }
     }
     pub fn sample(&self, u: f32, v: f32) -> Color {
-        /*
-        unsafe {
-            &self.data.get_unchecked((
-                (v & TEXTURE_MASK) * TEXTURE_SIZE + (u & TEXTURE_MASK)
-            ) as usize)
-        }
-        */
         unsafe {
             *self.data.get_unchecked(
-                (FTEXTURE_SIZE * v.trunc() + u).clamp(0.0, FTEXTURE_LEN) as usize
+                cmp::min(
+                    TEXTURE_LEN,
+                    cmp::max(
+                        0,
+                        (FTEXTURE_SIZE * v.trunc() + u).to_int_unchecked::<isize>()
+                    )
+                ) as usize
             )
         }
     }
