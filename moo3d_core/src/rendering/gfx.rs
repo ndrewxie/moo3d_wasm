@@ -42,9 +42,7 @@ impl Texture {
                 }
             }
         }
-        Self {
-            data: to_return,
-        }
+        Self { data: to_return }
     }
     pub fn sample(&self, u: f32, v: f32) -> Color {
         /*
@@ -61,9 +59,10 @@ impl Texture {
         }
         */
         unsafe {
-            *self.data.get_unchecked((
-                (FTEXTURE_SIZE * v.trunc() + u).to_int_unchecked::<isize>() & TEXTURE_LEN
-            ) as usize)
+            *self.data.get_unchecked(
+                ((FTEXTURE_SIZE * v.trunc() + u).to_int_unchecked::<isize>() & TEXTURE_LEN)
+                    as usize,
+            )
         }
     }
 }

@@ -33,7 +33,11 @@ impl GameState {
         for i in -5..5 {
             for j in -3..3 {
                 self.renderer.draw_cuboid(
-                    &Point3D::from_euc_coords(center_x as isize + near * i, center_y as isize + near * j, 5 * near),
+                    &Point3D::from_euc_coords(
+                        center_x as isize + near * i,
+                        center_y as isize + near * j,
+                        5 * near,
+                    ),
                     &(0.0, 0.0, 0.0),
                     &(near as usize, near as usize, near as usize),
                 );

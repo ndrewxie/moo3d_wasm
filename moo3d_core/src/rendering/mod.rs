@@ -368,14 +368,18 @@ impl Renderer {
             &vertices[1],
             &vertices[2],
             &vertices[3],
-            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
+            (
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+            ),
         );
         self.draw_quadface(
             &vertices[4],
             &vertices[5],
             &vertices[6],
             &vertices[7],
-            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
+            (
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+            ),
         );
 
         self.draw_quadface(
@@ -383,14 +387,18 @@ impl Renderer {
             &vertices[6],
             &vertices[5],
             &vertices[1],
-            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
+            (
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+            ),
         );
         self.draw_quadface(
             &vertices[0],
             &vertices[3],
             &vertices[7],
             &vertices[4],
-            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
+            (
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+            ),
         );
 
         self.draw_quadface(
@@ -398,14 +406,18 @@ impl Renderer {
             &vertices[1],
             &vertices[5],
             &vertices[4],
-            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
+            (
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+            ),
         );
         self.draw_quadface(
             &vertices[3],
             &vertices[2],
             &vertices[6],
             &vertices[7],
-            (0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture),
+            (
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+            ),
         );
     }
 }

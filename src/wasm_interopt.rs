@@ -1,16 +1,17 @@
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
 use std::mem;
 
 #[repr(C)]
 pub struct Uint8Array {
     pub data: *mut u8,
     pub length: usize,
-    data_owner: Option<Box<Vec<u8>>>,
+    data_owner: Option<Vec<u8>>,
 }
 impl Uint8Array {
     pub fn new(buf: &mut [u8]) -> *mut Self {
         let len = buf.len();
         let ptr = buf.as_mut_ptr();
-        mem::forget(buf);
+        //mem::forget(buf);
         let to_return = Self {
             data: ptr,
             length: len,
@@ -18,14 +19,14 @@ impl Uint8Array {
         };
         Box::into_raw(Box::new(to_return))
     }
-    pub unsafe fn from_vec(input: Vec<u8>) -> *mut Self {
-        let mut owner = Box::new(input);
-        let length = owner.len();
-        let ptr = owner.as_mut_ptr();
+    pub unsafe fn from_vec(mut input: Vec<u8>) -> *mut Self {
+        //let mut owner = Box::new(input);
+        let length = input.len();
+        let ptr = input.as_mut_ptr();
         let to_return = Self {
             data: ptr,
             length,
-            data_owner: Some(owner),
+            data_owner: Some(input),
         };
         Box::into_raw(Box::new(to_return))
     }
