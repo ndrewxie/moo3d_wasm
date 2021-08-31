@@ -124,7 +124,7 @@ impl Renderer {
             if z >= *self.z_buffer.get_unchecked(pixel_offset) {
                 return;
             }
-            
+
             let pixel_slice = self.pixels.as_mut_slice();
             *pixel_slice.get_unchecked_mut(offset) = color.r;
             *pixel_slice.get_unchecked_mut(offset + 1) = color.g;
@@ -300,20 +300,38 @@ impl Renderer {
                 p3.0 as f32,
                 p3.1 as f32,
             );
-        let inv_dudx: Option<f32> = if dudx.abs() <= 0.00001 {None} else {Some(1.0 / dudx)};
-        let inv_dvdx: Option<f32> = if dvdx.abs() <= 0.00001 {None} else {Some(1.0 / dvdx)};
-        let inv_dwdx: Option<f32> = if dwdx.abs() <= 0.00001 {None} else {Some(1.0 / dwdx)};
+        let inv_dudx: Option<f32> = if dudx.abs() <= 0.00001 {
+            None
+        } else {
+            Some(1.0 / dudx)
+        };
+        let inv_dvdx: Option<f32> = if dvdx.abs() <= 0.00001 {
+            None
+        } else {
+            Some(1.0 / dvdx)
+        };
+        let inv_dwdx: Option<f32> = if dwdx.abs() <= 0.00001 {
+            None
+        } else {
+            Some(1.0 / dwdx)
+        };
 
         let bary_interp_params = Self::barycentric_interp_params(p1.2, p2.2, p3.2);
-        let mut pixel_iterator = self.pixel_iterator(min_x as usize, min_y as usize); 
+        let mut pixel_iterator = self.pixel_iterator(min_x as usize, min_y as usize);
 
         for indy in min_y..max_y {
             let (x_start, x_end) = {
                 let mut low = 0.0;
                 let mut high = (max_x - min_x) as f32;
-                if inv_dudx.is_some() {Self::solve_bary_range(&mut low, &mut high, row_u, inv_dudx.unwrap())}
-                if inv_dvdx.is_some() {Self::solve_bary_range(&mut low, &mut high, row_v, inv_dvdx.unwrap())}
-                if inv_dwdx.is_some() {Self::solve_bary_range(&mut low, &mut high, row_w, inv_dwdx.unwrap())}
+                if inv_dudx.is_some() {
+                    Self::solve_bary_range(&mut low, &mut high, row_u, inv_dudx.unwrap())
+                }
+                if inv_dvdx.is_some() {
+                    Self::solve_bary_range(&mut low, &mut high, row_v, inv_dvdx.unwrap())
+                }
+                if inv_dwdx.is_some() {
+                    Self::solve_bary_range(&mut low, &mut high, row_w, inv_dwdx.unwrap())
+                }
                 (low as isize, (high + 0.5) as isize)
             };
             let mut column_u: f32 = dudx * (x_start as f32);
@@ -348,7 +366,12 @@ impl Renderer {
                     tc3y,
                 );
 
-                self.write_pixel_internal(pixel_iterator.pixel_offset, pixel_iterator.offset, interp_z, tex.sample(tcx, tcy));
+                self.write_pixel_internal(
+                    pixel_iterator.pixel_offset,
+                    pixel_iterator.offset,
+                    interp_z,
+                    tex.sample(tcx, tcy),
+                );
 
                 column_u += dudx;
                 column_v += dvdx;
