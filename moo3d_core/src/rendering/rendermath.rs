@@ -195,6 +195,11 @@ impl Point3D {
             position: Vector::with_data(vec![x as f32, y as f32, z as f32, 1.0]),
         }
     }
+    pub fn from_euc_coords_float(x: f32, y: f32, z: f32) -> Self {
+        Self {
+            position: Vector::with_data(vec![x, y, z, 1.0]),
+        }
+    }
     // haha funni name
     pub fn from_homo_coords(x: isize, y: isize, z: isize, w: f32) -> Self {
         Self {
@@ -203,6 +208,11 @@ impl Point3D {
     }
     pub fn homo_to_euc(&mut self) {
         self.position.homo_to_euc_inplace();
+    }
+    pub fn transform(&self, target: &Matrix) -> Self {
+        Self {
+            position: target.vector_mul(&self.position),
+        }
     }
 
     #[inline(always)]

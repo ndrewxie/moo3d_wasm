@@ -238,6 +238,7 @@ impl Renderer {
             }
         }
     }
+    // Requires clockwise order to draw
     pub fn draw_triface(
         &mut self,
         v1: &Point3D,
@@ -247,58 +248,63 @@ impl Renderer {
     ) {
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex) = texture;
 
-        let vertices = RenderMatrices::bundle_points(&[v1, v2, v3]);
+        let mut vertices = RenderMatrices::bundle_points(&[v1, v2, v3]);
 
         let forward = self.camera.view();
-        let reverse = self.camera.reverse();
+        let reverse = self.camera.reverse().matrix_mul(&self.camera.projection());
+        
+        vertices = forward.matrix_mul(&vertices);
+        let bary_interp_params = Self::barycentric_interp_params(vertices.get(0, 2), vertices.get(1, 2), vertices.get(2, 2));
 
         let proj =
-            RenderMatrices::split_points(&reverse.matrix_mul(&forward.matrix_mul(&vertices)));
+            RenderMatrices::split_points(&reverse.matrix_mul(&vertices));
 
-        let p1 = (
-            proj[0].x_coord(),
-            proj[0].y_coord(),
-            proj[0].z_coord_float(),
-        );
-        let p2 = (
-            proj[1].x_coord(),
-            proj[1].y_coord(),
-            proj[1].z_coord_float(),
-        );
-        let p3 = (
-            proj[2].x_coord(),
-            proj[2].y_coord(),
-            proj[2].z_coord_float(),
-        );
+        let p1x = proj[0].x_coord();
+        let p1y = proj[0].y_coord();
+        let p1x_f = proj[0].get(0);
+        let p1y_f = proj[0].get(1);
+        let p1z = proj[0].z_coord_float();
 
-        let render1 = self.to_render(p1.0, p1.1, Some(p1.2));
-        let render2 = self.to_render(p2.0, p2.1, Some(p2.2));
-        let render3 = self.to_render(p3.0, p3.1, Some(p3.2));
+        let p2x = proj[1].x_coord();
+        let p2y = proj[1].y_coord();
+        let p2x_f = proj[1].get(0);
+        let p2y_f = proj[1].get(1);
+        let p2z = proj[1].z_coord_float();
+
+        let p3x = proj[2].x_coord();
+        let p3y = proj[2].y_coord();
+        let p3x_f = proj[2].get(0);
+        let p3y_f = proj[2].get(1);
+        let p3z = proj[2].z_coord_float();
+
+        let render1 = self.to_render(p1x, p1y, Some(p1z));
+        let render2 = self.to_render(p2x, p2y, Some(p2z));
+        let render3 = self.to_render(p3x, p3y, Some(p3z));
         if (!render1) && (!render2) && (!render3) {
             return;
         }
 
-        let min_x = cmp::max(0, cmp::min(cmp::min(p1.0, p2.0), p3.0));
-        let min_y = cmp::max(0, cmp::min(cmp::min(p1.1, p2.1), p3.1));
+        let min_x = cmp::max(0, cmp::min(cmp::min(p1x, p2x), p3x));
+        let min_y = cmp::max(0, cmp::min(cmp::min(p1y, p2y), p3y));
         let max_x = cmp::min(
             self.width as isize - 1,
-            cmp::max(cmp::max(p1.0, p2.0), p3.0),
+            cmp::max(cmp::max(p1x, p2x), p3x),
         );
         let max_y = cmp::min(
             self.height as isize - 1,
-            cmp::max(cmp::max(p1.1, p2.1), p3.1),
+            cmp::max(cmp::max(p1y, p2y), p3y),
         );
 
         let (mut row_u, mut row_v, mut row_w, dudx, dvdx, dwdx, dudy, dvdy, dwdy) =
             RenderMatrices::barycentric_params(
                 min_x as f32,
                 min_y as f32,
-                p1.0 as f32,
-                p1.1 as f32,
-                p2.0 as f32,
-                p2.1 as f32,
-                p3.0 as f32,
-                p3.1 as f32,
+                p1x_f,
+                p1y_f,
+                p2x_f,
+                p2y_f,
+                p3x_f,
+                p3y_f,
             );
         let inv_dudx: Option<f32> = if dudx.abs() <= 0.00001 {
             None
@@ -316,7 +322,6 @@ impl Renderer {
             Some(1.0 / dwdx)
         };
 
-        let bary_interp_params = Self::barycentric_interp_params(p1.2, p2.2, p3.2);
         let mut pixel_iterator = self.pixel_iterator(min_x as usize, min_y as usize);
 
         for indy in min_y..max_y {
@@ -393,101 +398,90 @@ impl Renderer {
     ) {
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tc4x, tc4y, tex) = fill;
         self.draw_triface(v1, v2, v3, (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex));
-        self.draw_triface(v1, v3, v4, (tc1x, tc1y, tc3x, tc3y, tc4x, tc4y, tex));
+        self.draw_triface(v3, v4, v1, (tc3x, tc3y, tc4x, tc4y, tc1x, tc1y, tex));
+    }
+    // 1 is bottom, 2 is left side, 3 is far side, 4 is right side, 5 is near side, 6 is top
+    pub fn draw_cubeface(
+        &mut self,
+        center: &Point3D,
+        side: usize,
+        halfsides: &[f32],
+        transform: &Matrix,
+        texture: &Texture,
+    ) {
+        let x = center.get(0);
+        let y = center.get(1);
+        let z = center.get(2);
+
+        let (offset_x, offset_y, offset_z, axis_1, axis_2) = {
+            match side {
+                1 => { (0.0, 0.0, halfsides[2] as f32, 0, 1) }
+                2 => { (-(halfsides[0] as f32), 0.0, 0.0, 1, 2) }
+                3 => { (0.0, halfsides[1] as f32, 0.0, 0, 2) }
+                4 => { (halfsides[0] as f32, 0.0, 0.0, 1, 2) }
+                5 => { (0.0, -(halfsides[1] as f32), 0.0, 0, 2) }
+                6 => { (0.0, 0.0, -(halfsides[2] as f32), 0, 1) }
+                _ => { unreachable!() }
+            }
+        };
+
+        let mut p1 = Point3D::from_euc_coords_float(x + offset_x, y + offset_y, z + offset_z);
+        let mut p2 = Point3D::from_euc_coords_float(x + offset_x, y + offset_y, z + offset_z);
+        let mut p3 = Point3D::from_euc_coords_float(x + offset_x, y + offset_y, z + offset_z);
+        let mut p4 = Point3D::from_euc_coords_float(x + offset_x, y + offset_y, z + offset_z);
+
+        p1.set(axis_1, p1.get(axis_1) - halfsides[axis_1]);
+        p1.set(axis_2, p1.get(axis_2) + halfsides[axis_2]);
+        
+        p2.set(axis_1, p2.get(axis_1) + halfsides[axis_1]);
+        p2.set(axis_2, p2.get(axis_2) + halfsides[axis_2]);
+        
+        p3.set(axis_1, p3.get(axis_1) + halfsides[axis_1]);
+        p3.set(axis_2, p3.get(axis_2) - halfsides[axis_2]);
+
+        p4.set(axis_1, p4.get(axis_1) - halfsides[axis_1]);
+        p4.set(axis_2, p4.get(axis_2) - halfsides[axis_2]);
+
+        p1 = p1.transform(transform);
+        p2 = p2.transform(transform);
+        p3 = p3.transform(transform);
+        p4 = p4.transform(transform);
+
+        self.draw_quadface(
+            &p1, 
+            &p2, 
+            &p3, 
+            &p4, 
+            (0.0, gfx::MTEXCOORD, gfx::MTEXCOORD, gfx::MTEXCOORD, gfx::MTEXCOORD, 0.0, 0.0, 0.0, texture),
+        );
     }
     pub fn draw_cuboid(
         &mut self,
         position: &Point3D,
         orientation: &(f32, f32, f32),
-        dimensions: &(usize, usize, usize),
+        dimensions: &[f32],
         texture: &Texture
     ) {
         let x = position.x_coord();
         let y = position.y_coord();
         let z = position.z_coord();
 
-        let (sx, sy, sz) = dimensions;
-        let side_x = *sx as isize / 2;
-        let side_y = *sy as isize / 2;
-        let side_z = *sz as isize / 2;
-
         let (pitch, roll, yaw) = orientation;
+        let halfsides = [dimensions[0] / 2.0, dimensions[1] / 2.0, dimensions[2] / 2.0];
 
-        let vertices = RenderMatrices::split_points(
-            &RenderMatrices::rotation_3d(
-                *pitch,
-                *roll,
-                *yaw,
-                Some(&(x as f32, y as f32, z as f32)),
-            )
-            .matrix_mul(&RenderMatrices::bundle_points(&[
-                &Point3D::from_euc_coords(x - side_x, y - side_y, z + side_z), // 0
-                &Point3D::from_euc_coords(x + side_x, y - side_y, z + side_z), // 1
-                &Point3D::from_euc_coords(x + side_x, y + side_y, z + side_z), // 2
-                &Point3D::from_euc_coords(x - side_x, y + side_y, z + side_z), // 3
-                &Point3D::from_euc_coords(x - side_x, y - side_y, z - side_z), // 4
-                &Point3D::from_euc_coords(x + side_x, y - side_y, z - side_z), // 5
-                &Point3D::from_euc_coords(x + side_x, y + side_y, z - side_z), // 6
-                &Point3D::from_euc_coords(x - side_x, y + side_y, z - side_z), // 7
-            ])),
+        let transform = RenderMatrices::rotation_3d(
+            *pitch,
+            *roll,
+            *yaw,
+            Some(&(x as f32, y as f32, z as f32)),
         );
 
-        self.draw_quadface(
-            &vertices[0],
-            &vertices[1],
-            &vertices[2],
-            &vertices[3],
-            (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
-            ),
-        );
-        self.draw_quadface(
-            &vertices[4],
-            &vertices[5],
-            &vertices[6],
-            &vertices[7],
-            (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
-            ),
-        );
-
-        self.draw_quadface(
-            &vertices[2],
-            &vertices[6],
-            &vertices[5],
-            &vertices[1],
-            (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
-            ),
-        );
-        self.draw_quadface(
-            &vertices[0],
-            &vertices[3],
-            &vertices[7],
-            &vertices[4],
-            (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
-            ),
-        );
-
-        self.draw_quadface(
-            &vertices[0],
-            &vertices[1],
-            &vertices[5],
-            &vertices[4],
-            (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
-            ),
-        );
-        self.draw_quadface(
-            &vertices[3],
-            &vertices[2],
-            &vertices[6],
-            &vertices[7],
-            (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
-            ),
-        );
+        self.draw_cubeface(position, 1, &halfsides, &transform, &texture);
+        self.draw_cubeface(position, 2, &halfsides, &transform, &texture);
+        self.draw_cubeface(position, 3, &halfsides, &transform, &texture);
+        self.draw_cubeface(position, 4, &halfsides, &transform, &texture);
+        self.draw_cubeface(position, 5, &halfsides, &transform, &texture);
+        self.draw_cubeface(position, 6, &halfsides, &transform, &texture);
     }
 }
 
@@ -517,13 +511,14 @@ impl Camera {
     pub fn look(&mut self, target: Point3D) {
         self.target = target;
     }
+    pub fn projection(&self) -> Matrix {
+        RenderMatrices::projection(self.near, self.far)
+    }
     pub fn view(&self) -> Matrix {
         let mut forward = self.target.position.minus(&self.position.position);
         forward.normalize_inplace();
         let right = Vector::with_data(vec![0.0, 1.0, 0.0]).cross(&forward);
         let up = forward.cross(&right);
-
-        let projection_matrix = RenderMatrices::projection(self.near, self.far);
 
         let coord_matrix = Matrix::with_2d_data(&vec![
             vec![right.get(0), up.get(0), forward.get(0), 0.0],
@@ -538,7 +533,7 @@ impl Camera {
             -1.0 * (self.position.z_coord() as f32),
         );
 
-        projection_matrix.matrix_mul(&coord_matrix.matrix_mul(&translation_matrix))
+        coord_matrix.matrix_mul(&translation_matrix)
     }
     pub fn reverse(&self) -> Matrix {
         RenderMatrices::translation(
