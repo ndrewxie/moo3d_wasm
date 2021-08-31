@@ -20,6 +20,46 @@ pub enum Choice<A, B> {
     Second(B),
 }
 
+struct PixelIterator {
+    width: usize,
+    height: usize,
+
+    x: usize,
+    y: usize,
+
+    pub pixel_offset: usize,
+    pub offset: usize,
+}
+impl PixelIterator {
+    pub fn new(width: usize, height: usize, x: usize, y: usize) -> Self {
+        let pixel_offset: usize = y * width + x;
+        Self {
+            width,
+            height,
+            x,
+            y,
+            pixel_offset,
+            offset: 4 * pixel_offset,
+        }
+    }
+    pub fn next_row(&mut self) {
+        self.y += 1;
+        self.pixel_offset += self.width;
+        self.offset += 4 * self.width;
+    }
+    pub fn next_column(&mut self) {
+        self.x += 1;
+        self.pixel_offset += 1;
+        self.offset += 4;
+    }
+    pub fn move_to(&mut self, x: usize, y: usize) {
+        self.x = x;
+        self.y = y;
+        self.pixel_offset = y * self.width + x;
+        self.offset = 4 * self.pixel_offset;
+    }
+}
+
 #[repr(C)]
 pub struct Renderer {
     pub width: usize,
@@ -61,6 +101,9 @@ impl Renderer {
     pub fn get_far(&self) -> isize {
         self.camera.far
     }
+    fn pixel_iterator(&self, x: usize, y: usize) -> PixelIterator {
+        PixelIterator::new(self.width, self.height, x, y)
+    }
     fn to_render(&self, x: isize, y: isize, z: Option<f32>) -> bool {
         if x < 0 || x >= self.width as isize {
             return false;
@@ -76,17 +119,12 @@ impl Renderer {
         }
         return true;
     }
-    fn write_pixel_unchecked(&mut self, x: isize, y: isize, z: f32, color: Color) {
-        let pixel_offset = y as usize * self.width + x as usize;
-
+    fn write_pixel_internal(&mut self, pixel_offset: usize, offset: usize, z: f32, color: Color) {
         unsafe {
             if z >= *self.z_buffer.get_unchecked(pixel_offset) {
                 return;
             }
-        }
-
-        let offset = 4 * pixel_offset;
-        unsafe {
+            
             let pixel_slice = self.pixels.as_mut_slice();
             *pixel_slice.get_unchecked_mut(offset) = color.r;
             *pixel_slice.get_unchecked_mut(offset + 1) = color.g;
@@ -96,6 +134,12 @@ impl Renderer {
             *self.z_buffer.get_unchecked_mut(pixel_offset) = z;
         }
     }
+    #[inline(always)]
+    fn write_pixel_unchecked(&mut self, x: isize, y: isize, z: f32, color: Color) {
+        let pixel_offset = y as usize * self.width + x as usize;
+        self.write_pixel_internal(pixel_offset, 4 * pixel_offset, z, color);
+    }
+    #[inline(always)]
     pub fn write_pixel(&mut self, x: isize, y: isize, z: f32, color: Color) {
         if !self.to_render(x, y, Some(z)) {
             return;
@@ -256,24 +300,26 @@ impl Renderer {
                 p3.0 as f32,
                 p3.1 as f32,
             );
-        let inv_dudx = 1.0 / dudx;
-        let inv_dvdx = 1.0 / dvdx;
-        let inv_dwdx = 1.0 / dwdx;
+        let inv_dudx: Option<f32> = if dudx.abs() <= 0.00001 {None} else {Some(1.0 / dudx)};
+        let inv_dvdx: Option<f32> = if dvdx.abs() <= 0.00001 {None} else {Some(1.0 / dvdx)};
+        let inv_dwdx: Option<f32> = if dwdx.abs() <= 0.00001 {None} else {Some(1.0 / dwdx)};
 
         let bary_interp_params = Self::barycentric_interp_params(p1.2, p2.2, p3.2);
+        let mut pixel_iterator = self.pixel_iterator(min_x as usize, min_y as usize); 
 
         for indy in min_y..max_y {
             let (x_start, x_end) = {
                 let mut low = 0.0;
                 let mut high = (max_x - min_x) as f32;
-                Self::solve_bary_range(&mut low, &mut high, row_u, inv_dudx);
-                Self::solve_bary_range(&mut low, &mut high, row_v, inv_dvdx);
-                Self::solve_bary_range(&mut low, &mut high, row_w, inv_dwdx);
+                if inv_dudx.is_some() {Self::solve_bary_range(&mut low, &mut high, row_u, inv_dudx.unwrap())}
+                if inv_dvdx.is_some() {Self::solve_bary_range(&mut low, &mut high, row_v, inv_dvdx.unwrap())}
+                if inv_dwdx.is_some() {Self::solve_bary_range(&mut low, &mut high, row_w, inv_dwdx.unwrap())}
                 (low as isize, (high + 0.5) as isize)
             };
             let mut column_u: f32 = dudx * (x_start as f32);
             let mut column_v: f32 = dvdx * (x_start as f32);
             let mut column_w: f32 = dwdx * (x_start as f32);
+            pixel_iterator.move_to((x_start + min_x) as usize, indy as usize);
 
             for indx in x_start..x_end {
                 let u = row_u + column_u;
@@ -302,11 +348,12 @@ impl Renderer {
                     tc3y,
                 );
 
-                self.write_pixel_unchecked(indx + min_x, indy, interp_z, tex.sample(tcx, tcy));
+                self.write_pixel_internal(pixel_iterator.pixel_offset, pixel_iterator.offset, interp_z, tex.sample(tcx, tcy));
 
                 column_u += dudx;
                 column_v += dvdx;
                 column_w += dwdx;
+                pixel_iterator.next_column();
             }
             row_u += dudy;
             row_v += dvdy;
