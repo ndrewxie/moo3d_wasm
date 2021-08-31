@@ -400,6 +400,7 @@ impl Renderer {
         position: &Point3D,
         orientation: &(f32, f32, f32),
         dimensions: &(usize, usize, usize),
+        texture: &Texture
     ) {
         let x = position.x_coord();
         let y = position.y_coord();
@@ -431,15 +432,13 @@ impl Renderer {
             ])),
         );
 
-        let texture = Texture::checkerboard();
-
         self.draw_quadface(
             &vertices[0],
             &vertices[1],
             &vertices[2],
             &vertices[3],
             (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
             ),
         );
         self.draw_quadface(
@@ -448,7 +447,7 @@ impl Renderer {
             &vertices[6],
             &vertices[7],
             (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
             ),
         );
 
@@ -458,7 +457,7 @@ impl Renderer {
             &vertices[5],
             &vertices[1],
             (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
             ),
         );
         self.draw_quadface(
@@ -467,7 +466,7 @@ impl Renderer {
             &vertices[7],
             &vertices[4],
             (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
             ),
         );
 
@@ -477,7 +476,7 @@ impl Renderer {
             &vertices[5],
             &vertices[4],
             (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
             ),
         );
         self.draw_quadface(
@@ -486,7 +485,7 @@ impl Renderer {
             &vertices[6],
             &vertices[7],
             (
-                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, &texture,
+                0.0, 0.0, MTEXCOORD, 0.0, MTEXCOORD, MTEXCOORD, 0.0, MTEXCOORD, texture,
             ),
         );
     }

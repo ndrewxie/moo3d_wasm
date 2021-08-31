@@ -9,12 +9,14 @@ use rendering::rendermath::{Matrix, Point3D, Vector};
 pub struct GameState {
     last_frame: usize,
     renderer: rendering::Renderer,
+    textures: Vec<Texture>
 }
 impl GameState {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             renderer: rendering::Renderer::new(width, height, 120.0 * std::f32::consts::PI / 180.0),
             last_frame: 0,
+            textures: vec![Texture::checkerboard()]
         }
     }
     pub fn get_pixels(&self) -> &[u8] {
@@ -40,6 +42,7 @@ impl GameState {
                     ),
                     &(0.0, 0.0, 0.0),
                     &(near as usize, near as usize, near as usize),
+                    &self.textures[0],
                 );
             }
         }
