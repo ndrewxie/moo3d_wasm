@@ -38,11 +38,15 @@ impl Vector {
     }
     #[inline(always)]
     pub fn set(&mut self, indx: usize, val: f32) {
-        *self.elements.get_unchecked_mut(indx) = val;
+        unsafe {
+            *self.elements.get_unchecked_mut(indx) = val;
+        }
     }
     #[inline(always)]
     pub fn get(&self, indx: usize) -> f32 {
-        *self.elements.get_unchecked(indx)
+        unsafe {
+            *self.elements.get_unchecked(indx)
+        }
     }
     pub fn norm(&self) -> f32 {
         let mut acc: f32 = 0.0;
