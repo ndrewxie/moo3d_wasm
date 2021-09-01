@@ -206,9 +206,11 @@ impl Renderer {
     fn barycentric_interp_params(z_a: f32, z_b: f32, z_c: f32) -> (f32, f32, f32) {
         (1.0 / z_a, 1.0 / z_b, 1.0 / z_c)
     }
+    #[inline(always)]
     fn interp_barycentric_z(params: &(f32, f32, f32), u: f32, v: f32, w: f32) -> f32 {
         1.0 / (params.0 * u + params.1 * v + params.2 * w)
     }
+    #[inline(always)]
     fn interp_barycentric(
         params: &(f32, f32, f32),
         u: f32,
