@@ -75,8 +75,13 @@ function launch_init() {
 
 let translate_state = [0, 0, 0];
 let translate_look_state = [0, 0, 0];
+let last_frame = 0;
+let fps = 0;
 
 function renderLoop(curr_time) {
+    fps = 1000 / (curr_time - last_frame);
+    last_frame = curr_time;
+
     instance.exports.translate_camera(gs_manager, translate_state[0], translate_state[1], translate_state[2]);
     instance.exports.translate_camera_look(gs_manager, translate_look_state[0], translate_look_state[1], translate_look_state[2]);
 
@@ -142,4 +147,9 @@ document.addEventListener('keyup', function(e) {
             translate_look_state = [0, 0, 0];
         break;
     }
-})
+});
+
+let fps_meter = document.getElementById('fpsMeter');
+setInterval(function() {
+    fps_meter.innerText = 'FPS: ' + (Math.round(fps * 100) / 100);
+}, 2000);
