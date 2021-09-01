@@ -524,9 +524,9 @@ impl Camera {
         self.position.set_y_coord(self.position.y_coord() + dy);
         self.position.set_z_coord(self.position.z_coord() + dz);
 
-        self.target.set_x_coord(self.target.x_coord() + dx);
-        self.target.set_y_coord(self.target.y_coord() + dy);
-        self.target.set_z_coord(self.target.z_coord() + dz);
+        self.target.set(0, self.target.get(0) + dx as f32);
+        self.target.set(1, self.target.get(1) + dy as f32);
+        self.target.set(2, self.target.get(2) + dz as f32);
     }
     pub fn translate_look(&mut self, dx: f32, dy: f32, dz: f32) {
         self.target.set(0, self.target.get(0) + dx);
@@ -553,18 +553,14 @@ impl Camera {
         ]);
 
         let translation_matrix = RenderMatrices::translation(
-            -1.0 * (self.position.x_coord() as f32),
-            -1.0 * (self.position.y_coord() as f32),
-            -1.0 * (self.position.z_coord() as f32),
+            -1.0 * self.position.get(0),
+            -1.0 * self.position.get(1),
+            -1.0 * self.position.get(2),
         );
 
         coord_matrix.matrix_mul(&translation_matrix)
     }
     pub fn reverse(&self) -> Matrix {
-        RenderMatrices::translation(
-            self.position.x_coord() as f32,
-            self.position.y_coord() as f32,
-            0.0,
-        )
+        RenderMatrices::translation(self.position.get(0), self.position.get(1), 0.0)
     }
 }

@@ -34,14 +34,14 @@ impl GameState {
         let near = self.renderer.get_near() as isize;
 
         self.renderer.clear();
-        /*
-        for i in -5..5 {
-            for j in -3..3 {
+
+        for i in -15..15 {
+            for j in -5..15 {
                 self.renderer.draw_cuboid(
                     &Point3D::from_euc_coords(
                         center_x as isize + near * i,
-                        center_y as isize + near * j,
-                        5 * near,
+                        center_y as isize + 2 * near,
+                        5 * near + near * j,
                     ),
                     &(0.0, 0.0, 0.0),
                     &[near as f32, near as f32, near as f32],
@@ -49,13 +49,14 @@ impl GameState {
                 );
             }
         }
-        */
+        /*
         self.renderer.draw_cuboid(
             &Point3D::from_euc_coords(center_x as isize, center_y as isize, 5 * near),
             &(angle, 0.0, angle),
             &[near as f32, near as f32, near as f32],
             &self.textures[0],
         );
+        */
     }
     pub fn translate_camera(&mut self, trans_x: isize, trans_y: isize, trans_z: isize) {
         self.renderer.camera.translate(trans_x, trans_y, trans_z);
