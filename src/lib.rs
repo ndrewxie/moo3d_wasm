@@ -25,7 +25,7 @@ pub unsafe extern "C" fn render_game(input: *mut moo3d_core::GameState, curr_tim
 
 #[no_mangle]
 pub unsafe extern "C" fn translate_camera(
-    input: &mut moo3d_core::GameState,
+    input: *mut moo3d_core::GameState,
     trans_x: isize,
     trans_y: isize,
     trans_z: isize,
@@ -35,7 +35,7 @@ pub unsafe extern "C" fn translate_camera(
 
 #[no_mangle]
 pub unsafe extern "C" fn translate_camera_look(
-    input: &mut moo3d_core::GameState,
+    input: *mut moo3d_core::GameState,
     trans_x: f32,
     trans_y: f32,
     trans_z: f32,

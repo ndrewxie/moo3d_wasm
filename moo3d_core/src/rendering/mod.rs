@@ -324,7 +324,7 @@ impl Renderer {
         let mut pixel_iterator = self.pixel_iterator(min_x as usize, min_y as usize);
 
         for indy in min_y..max_y {
-            let (x_start, x_end) = {
+            let (x_start, x_end, mut column_u, mut column_v, mut column_w) = {
                 let mut low = 0.0;
                 let mut high = (max_x - min_x) as f32;
                 if inv_dudx.is_some() {
@@ -336,11 +336,14 @@ impl Renderer {
                 if inv_dwdx.is_some() {
                     Self::solve_bary_range(&mut low, &mut high, row_w, inv_dwdx.unwrap())
                 }
-                (low as isize, (high + 0.5) as isize)
+                (
+                    low as isize,
+                    (high + 0.5) as isize,
+                    dudx * low,
+                    dvdx * low,
+                    dwdx * low,
+                )
             };
-            let mut column_u: f32 = dudx * (x_start as f32);
-            let mut column_v: f32 = dvdx * (x_start as f32);
-            let mut column_w: f32 = dwdx * (x_start as f32);
             pixel_iterator.move_to((x_start + min_x) as usize, indy as usize);
 
             for indx in x_start..x_end {
@@ -522,9 +525,9 @@ impl Camera {
         }
     }
     pub fn translate(&mut self, dx: isize, dy: isize, dz: isize) {
-        self.position.set_x_coord(self.position.x_coord() + dx);
-        self.position.set_y_coord(self.position.y_coord() + dy);
-        self.position.set_z_coord(self.position.z_coord() + dz);
+        self.position.set(0, self.position.get(0) + dx as f32);
+        self.position.set(1, self.position.get(1) + dy as f32);
+        self.position.set(2, self.position.get(2) + dz as f32);
 
         self.target.set(0, self.target.get(0) + dx as f32);
         self.target.set(1, self.target.get(1) + dy as f32);

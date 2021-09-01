@@ -204,6 +204,11 @@ impl Point3D {
             position: Vector::with_data(vec![x as f32, y as f32, z as f32, w]),
         }
     }
+    pub fn from_homo_coords_float(x: f32, y: f32, z: f32, w: f32) -> Self {
+        Self {
+            position: Vector::with_data(vec![x, y, z, w]),
+        }
+    }
     pub fn homo_to_euc(&mut self) {
         self.position.homo_to_euc_inplace();
     }
@@ -270,12 +275,12 @@ impl RenderMatrices {
     pub fn split_points(input: &Matrix) -> Vec<Point3D> {
         let mut to_return = Vec::with_capacity(input.width);
         for indx in 0..input.width {
-            let x = input.get(indx, 0);
-            let y = input.get(indx, 1);
-            let z = input.get(indx, 2);
-            let w = input.get(indx, 3);
-
-            let mut to_push = Point3D::from_homo_coords(x as isize, y as isize, z as isize, w);
+            let mut to_push = Point3D::from_homo_coords_float(
+                input.get(indx, 0),
+                input.get(indx, 1),
+                input.get(indx, 2),
+                input.get(indx, 3),
+            );
             to_push.homo_to_euc();
             to_return.push(to_push);
         }
