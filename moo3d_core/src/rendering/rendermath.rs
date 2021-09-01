@@ -44,9 +44,7 @@ impl Vector {
     }
     #[inline(always)]
     pub fn get(&self, indx: usize) -> f32 {
-        unsafe {
-            *self.elements.get_unchecked(indx)
-        }
+        unsafe { *self.elements.get_unchecked(indx) }
     }
     pub fn norm(&self) -> f32 {
         let mut acc: f32 = 0.0;
@@ -387,6 +385,9 @@ impl RenderMatrices {
         to_return.set(3, 3, 1.0);
 
         to_return
+    }
+    pub fn det_3x3(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32, g: f32, h: f32, i: f32) -> f32 {
+        a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
     }
     // Faster, specialized version of det, valid only if the top row (a, b, c) are all 1.0
     fn bary_det(d: f32, e: f32, f: f32, g: f32, h: f32, i: f32) -> f32 {

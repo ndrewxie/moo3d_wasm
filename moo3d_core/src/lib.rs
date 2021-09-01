@@ -9,14 +9,14 @@ use rendering::rendermath::{Matrix, Point3D, Vector};
 pub struct GameState {
     last_frame: usize,
     renderer: rendering::Renderer,
-    textures: Vec<Texture>
+    textures: Vec<Texture>,
 }
 impl GameState {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             renderer: rendering::Renderer::new(width, height, 120.0 * std::f32::consts::PI / 180.0),
             last_frame: 0,
-            textures: vec![Texture::checkerboard()]
+            textures: vec![Texture::checkerboard()],
         }
     }
     pub fn get_pixels(&self) -> &[u8] {
@@ -51,11 +51,7 @@ impl GameState {
         }
         */
         self.renderer.draw_cuboid(
-            &Point3D::from_euc_coords(
-                center_x as isize,
-                center_y as isize,
-                5 * near,
-            ),
+            &Point3D::from_euc_coords(center_x as isize, center_y as isize, 5 * near),
             &(angle, 0.0, angle),
             &[near as f32, near as f32, near as f32],
             &self.textures[0],
