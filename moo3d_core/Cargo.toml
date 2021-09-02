@@ -7,6 +7,10 @@ edition = "2018"
 name = "moo3d_core"
 crate-type = ["rlib"]
 
+[[bin]]
+name = "moo3d_test"
+path = "src/bin.rs"
+
 [dependencies]
 
 [profile.release]
@@ -18,7 +22,6 @@ debug = true
 
 [profile.test]
 opt-level = 3
-lto = true
 panic = "abort"
-codegen-units = 1
+codegen-units = 16
 debug = true

@@ -67,17 +67,3 @@ impl GameState {
             .translate_look(trans_x, trans_y, trans_z);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_cuboid() {
-        let mut gs_manager = GameState::new(1918, 959);
-        //gs_manager.renderer.camera.translate(0, 0, 2300);
-        for j in 0..300 {
-            gs_manager.render(j);
-        }
-    }
-}

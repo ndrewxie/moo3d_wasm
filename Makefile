@@ -6,15 +6,18 @@ all:
 
 test:
 	clear
-	RUST_BACKTRACE=1 cargo test --all -- --nocapture
-	RUST_BACKTRACE=1 cargo test -p moo3d_core -- --nocapture
+	RUST_BACKTRACE=1 cargo test -p moo3d_core --bin moo3d_test -- --nocapture
 
 profile:
 	clear
-	cargo test --no-run -p moo3d_core
-	cp `find ./target/debug/deps/ -maxdepth 1 -name "*moo3d_core*" ! -name "*.*"` ./
+	cargo build --release -p moo3d_core --bin moo3d_test
+	cp `find ./target/release/deps/ -maxdepth 1 -name "*moo3d_test*" ! -name "*.*"` ./
 
 callgrind:
 	clear
-	cargo test --no-run -p moo3d_core
-	valgrind --tool=callgrind --cache-sim=yes --simulate-wb=yes --cacheuse=yes `find ./target/debug/deps/ -maxdepth 1 -name "*moo3d_core*" ! -name "*.*"`
+	cargo build --release -p moo3d_core --bin moo3d_test
+	valgrind --tool=callgrind --cache-sim=yes --simulate-wb=yes --cacheuse=yes `find ./target/release/deps/ -maxdepth 1 -name "*moo3d_test*" ! -name "*.*"`
+
+sanitize:
+	cargo fmt --all
+	cargo clean
