@@ -15,7 +15,6 @@ pub struct GameState {
 impl GameState {
     pub fn new(width: usize, height: usize, texture_array: &[u8]) -> Self {
         let texture_slice_len = (4 * (gfx::TEXTURE_LEN + 1)) as usize;
-        let texture_slice_max = (4 * gfx::TEXTURE_LEN) as usize;
 
         let mut textures: Vec<Texture> = Vec::new();
 

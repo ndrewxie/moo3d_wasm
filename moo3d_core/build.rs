@@ -1,5 +1,4 @@
 use std::fs;
-use std::fs::File;
 extern crate image;
 use image::{GenericImage, Pixel, Pixels};
 

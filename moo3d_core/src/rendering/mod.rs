@@ -450,10 +450,10 @@ impl Renderer {
         let mut transformed_center = center.transform(transform);
         transformed_center = transformed_center.transform(&camera_view);
 
-        if ((face_center.get(0) - transformed_center.get(0)) * transformed_center.get(0)
+        if (face_center.get(0) - transformed_center.get(0)) * transformed_center.get(0)
             + (face_center.get(1) - transformed_center.get(1)) * transformed_center.get(1)
             + (face_center.get(2) - transformed_center.get(2)) * transformed_center.get(2)
-            > 0.0)
+            > 0.0
         {
             return;
         }
