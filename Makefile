@@ -3,12 +3,12 @@ all:
 	cargo build --target wasm32-unknown-unknown --release
 
 	rm -f ./client/moo3d_wasm.wasm
-	rm -f ./client/moo3d_wasm.wasm.gzip
+	rm -f ./client/moo3d_wasm.wasm.gz
 	cp ./target/wasm32-unknown-unknown/release/moo3d_wasm.wasm ./client/moo3d_wasm.wasm
 	gzip -k ./client/moo3d_wasm.wasm
 
 	rm -f ./client/images.bin
-	rm -f ./client/images.bin.gzip
+	rm -f ./client/images.bin.gz
 	cp ./moo3d_core/images.bin ./client/images.bin
 	gzip -k ./client/images.bin
 
