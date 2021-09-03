@@ -15,11 +15,11 @@ var import_object = {
     env: {memory}
 };
 WebAssembly.instantiateStreaming(fetch('moo3d_wasm.wasm'), import_object)
-.then(results => {
+.then(async results => {
     if (test_wasm(results.instance)) {
         console.log('WASM PASSED');
         instance = results.instance;
-        launch_init();
+        await launch_init();
     }
     else {
         alert('WASM FAILED');
@@ -47,7 +47,7 @@ function test_wasm(input_instance) {
     return true;
 }
 
-function launch_init() {
+async function launch_init() {
     let gameCanvas = document.getElementById('gameCanvas');
 
     width = Math.floor(window.innerWidth);
@@ -64,7 +64,10 @@ function launch_init() {
 
     ctx = gameCanvas.getContext('2d');
 
-    gs_manager = instance.exports.make_game_state(width, height);
+    let img_response = await fetch('images.bin');
+    let loaded_images = new Uint8Array(await (await img_response.blob()).arrayBuffer());
+    
+    gs_manager = instance.exports.make_game_state(width, height, uint8ToWasm(instance, loaded_images));
 
     let raw_data = instance.exports.get_pixel_data(gs_manager)
 

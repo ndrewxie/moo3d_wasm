@@ -2,6 +2,7 @@
 
 pub mod rendering;
 
+use rendering::gfx;
 use rendering::gfx::{Color, Texture};
 use rendering::rendermath::{Matrix, Point3D, Vector};
 
@@ -12,11 +13,32 @@ pub struct GameState {
     textures: Vec<Texture>,
 }
 impl GameState {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize, texture_array: &[u8]) -> Self {
+        let texture_slice_len = (4 * (gfx::TEXTURE_LEN + 1)) as usize;
+        let texture_slice_max = (4 * gfx::TEXTURE_LEN) as usize;
+
+        let mut textures: Vec<Texture> = Vec::new();
+
+        assert_eq!(texture_array.len() % texture_slice_len, 0);
+
+        let mut acc: Vec<Color> = Vec::new();
+        for pixel_indx in (0..texture_array.len()).step_by(4) {
+            acc.push(Color::new(
+                texture_array[pixel_indx],
+                texture_array[pixel_indx + 1],
+                texture_array[pixel_indx + 2],
+                texture_array[pixel_indx + 3],
+            ));
+            if acc.len() as isize == gfx::TEXTURE_LEN + 1 {
+                textures.push(Texture::new(acc));
+                acc = Vec::new();
+            }
+        }
+
         Self {
             renderer: rendering::Renderer::new(width, height, 120.0 * std::f32::consts::PI / 180.0),
             last_frame: 0,
-            textures: vec![Texture::checkerboard()],
+            textures,
         }
     }
     pub fn get_pixels(&self) -> &[u8] {

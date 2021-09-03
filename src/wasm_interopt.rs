@@ -30,6 +30,9 @@ impl Uint8Array {
         };
         Box::into_raw(Box::new(to_return))
     }
+    pub fn get_data(self) -> Vec<u8> {
+        self.data_owner.unwrap()
+    }
 }
 
 #[no_mangle]

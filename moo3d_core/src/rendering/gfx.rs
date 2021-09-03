@@ -2,14 +2,14 @@ use std::cmp;
 
 pub const TEXTURE_SIZE: isize = 128;
 const MAX_TEXTURE_COORD: isize = TEXTURE_SIZE - 1;
-const TEXTURE_LEN: isize = TEXTURE_SIZE * MAX_TEXTURE_COORD + MAX_TEXTURE_COORD;
+pub const TEXTURE_LEN: isize = TEXTURE_SIZE * MAX_TEXTURE_COORD + MAX_TEXTURE_COORD;
 const FTEXTURE_SIZE: f32 = TEXTURE_SIZE as f32;
 
 pub const MTEXCOORD: f32 = MAX_TEXTURE_COORD as f32;
 
 //const TEXTURE_MASK: isize = TEXTURE_SIZE - 1;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Color {
     pub r: u8,
@@ -24,10 +24,14 @@ impl Color {
     }
 }
 
+#[derive(Debug)]
 pub struct Texture {
     data: Vec<Color>,
 }
 impl Texture {
+    pub fn new(data: Vec<Color>) -> Self {
+        Self { data }
+    }
     pub fn checkerboard() -> Self {
         let mut to_return = Vec::with_capacity((TEXTURE_SIZE * TEXTURE_SIZE) as usize);
         for indy in 0..TEXTURE_SIZE {

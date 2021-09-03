@@ -7,8 +7,19 @@ mod wasm_interopt;
 extern crate moo3d_core;
 
 #[no_mangle]
-pub extern "C" fn make_game_state(width: usize, height: usize) -> *mut moo3d_core::GameState {
-    Box::into_raw(Box::new(moo3d_core::GameState::new(width, height)))
+pub unsafe extern "C" fn make_game_state(
+    width: usize,
+    height: usize,
+    tex: *mut wasm_interopt::Uint8Array,
+) -> *mut moo3d_core::GameState {
+    let owned_textures = Box::from_raw(tex);
+    let texture_array = owned_textures.get_data();
+
+    Box::into_raw(Box::new(moo3d_core::GameState::new(
+        width,
+        height,
+        &texture_array,
+    )))
 }
 
 #[no_mangle]
