@@ -1,9 +1,18 @@
 all:
 	clear
 	cargo build --target wasm32-unknown-unknown --release
+
+	rm -f ./client/moo3d_wasm.wasm
+	rm -f ./client/moo3d_wasm.wasm.gzip
 	cp ./target/wasm32-unknown-unknown/release/moo3d_wasm.wasm ./client/moo3d_wasm.wasm
+	gzip -k ./client/moo3d_wasm.wasm
+
+	rm -f ./client/images.bin
+	rm -f ./client/images.bin.gzip
 	cp ./moo3d_core/images.bin ./client/images.bin
-	python3 -m http.server -d ./client/	
+	gzip -k ./client/images.bin
+
+	npx http-server ./client/ --gzip
 
 test:
 	clear
