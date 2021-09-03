@@ -21,7 +21,11 @@ test:
 profile:
 	clear
 	cargo build --release -p moo3d_core --bin moo3d_test
-	cp `find ./target/release/deps/ -maxdepth 1 -name "*moo3d_test*" ! -name "*.*"` ./
+
+	rm -rf ./profiling
+	mkdir -p ./profiling
+	cp `find ./target/release/deps/ -maxdepth 1 -name "*moo3d_test*" ! -name "*.*"` ./profiling/profile_target
+	cp ./moo3d_core/images.bin ./profiling/
 
 callgrind:
 	clear
@@ -31,3 +35,4 @@ callgrind:
 sanitize:
 	cargo fmt --all
 	cargo clean
+	rm -rf ./profiling
