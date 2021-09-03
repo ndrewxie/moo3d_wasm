@@ -66,7 +66,11 @@ impl GameState {
                     ),
                     &(0.0, 0.0, 0.0),
                     &[near as f32, near as f32, near as f32],
-                    &self.textures[0],
+                    if i % 2 == 0 {
+                        &self.textures[1]
+                    } else {
+                        &self.textures[0]
+                    },
                 );
             }
         }
