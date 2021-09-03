@@ -1,3 +1,5 @@
+.PHONY: all test profile callgrind sanitize
+
 all:
 	clear
 	cargo build --target wasm32-unknown-unknown --release
@@ -27,10 +29,8 @@ profile:
 	cp `find ./target/release/deps/ -maxdepth 1 -name "*moo3d_test*" ! -name "*.*"` ./profiling/profile_target
 	cp ./moo3d_core/images.bin ./profiling/
 
-callgrind:
-	clear
-	cargo build --release -p moo3d_core --bin moo3d_test
-	valgrind --tool=callgrind --cache-sim=yes --simulate-wb=yes --cacheuse=yes `find ./target/release/deps/ -maxdepth 1 -name "*moo3d_test*" ! -name "*.*"`
+callgrind: profile
+	cd ./profiling && valgrind --tool=callgrind --branch-sim=yes --cache-sim=yes --simulate-wb=yes ./profile_target 
 
 sanitize:
 	cargo fmt --all
