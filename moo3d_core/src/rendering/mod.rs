@@ -249,7 +249,20 @@ impl Renderer {
             }
         }
     }
-    // Requires clockwise order to draw
+    // clockwise is out of the page
+    // Using right hand rule, thumb is normal, index finger gives 2nd point,
+    // middle finger gives first point
+    fn triface_normal(v1: &Point3D, v2: &Point3D, v3: &Point3D) -> Vector {
+        let a = v2.position.minus(&v3.position);
+        let b = v1.position.minus(&v3.position);
+        a.cross(&b).normalize()
+    }
+    fn triface_center(v1: &Point3D, v2: &Point3D, v3: &Point3D) -> Vector {
+        v1.position
+            .plus(&v2.position)
+            .plus(&v3.position)
+            .scalar_mul(1.0 / 3.0)
+    }
     pub fn draw_triface(
         &mut self,
         v1: &Point3D,
@@ -257,6 +270,13 @@ impl Renderer {
         v3: &Point3D,
         texture: (f32, f32, f32, f32, f32, f32, &Texture),
     ) {
+        if Self::triface_normal(v1, v2, v3)
+            .dot(&Self::triface_center(v1, v2, v3).minus(&self.camera.data.position.position))
+            < 0.0
+        {
+            return;
+        }
+
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex) = texture;
 
         let mut vertices = RenderMatrices::bundle_points(&[v1, v2, v3]);
@@ -268,6 +288,7 @@ impl Renderer {
             );
 
         vertices = forward.matrix_mul(&vertices);
+
         let bary_interp_params = Self::barycentric_interp_params(
             vertices.get(0, 2),
             vertices.get(1, 2),
@@ -430,38 +451,35 @@ impl Renderer {
         let (offset_x, offset_y, offset_z, axis_1, axis_2) = {
             match side {
                 1 => (0.0, 0.0, halfsides[2] as f32, 0, 1),
-                2 => (-(halfsides[0] as f32), 0.0, 0.0, 1, 2),
-                3 => (0.0, halfsides[1] as f32, 0.0, 0, 2),
+                2 => (-(halfsides[0] as f32), 0.0, 0.0, 2, 1),
+                3 => (0.0, halfsides[1] as f32, 0.0, 2, 0),
                 4 => (halfsides[0] as f32, 0.0, 0.0, 1, 2),
                 5 => (0.0, -(halfsides[1] as f32), 0.0, 0, 2),
-                6 => (0.0, 0.0, -(halfsides[2] as f32), 0, 1),
+                6 => (0.0, 0.0, -(halfsides[2] as f32), 1, 0),
                 _ => {
                     unreachable!()
                 }
             }
         };
 
-        let camera_view = CameraCache::view(&mut self.camera.cache.view, &self.camera.data);
-        let mut face_center =
-            Point3D::from_euc_coords_float(x + offset_x, y + offset_y, z + offset_z);
-        face_center = face_center.transform(transform);
-        face_center = face_center.transform(&camera_view);
-        let mut transformed_center = center.transform(transform);
-        transformed_center = transformed_center.transform(&camera_view);
-
-        if (face_center.get(0) - transformed_center.get(0)) * transformed_center.get(0)
-            + (face_center.get(1) - transformed_center.get(1)) * transformed_center.get(1)
-            + (face_center.get(2) - transformed_center.get(2)) * transformed_center.get(2)
-            > 0.0
-        {
-            return;
-        }
-
         let mut p1 = Point3D::from_euc_coords_float(x + offset_x, y + offset_y, z + offset_z);
         let mut p2 = Point3D::from_euc_coords_float(x + offset_x, y + offset_y, z + offset_z);
         let mut p3 = Point3D::from_euc_coords_float(x + offset_x, y + offset_y, z + offset_z);
         let mut p4 = Point3D::from_euc_coords_float(x + offset_x, y + offset_y, z + offset_z);
 
+        p1.set(axis_1, p1.get(axis_1) - halfsides[axis_1]);
+        p1.set(axis_2, p1.get(axis_2) - halfsides[axis_2]);
+
+        p2.set(axis_1, p2.get(axis_1) + halfsides[axis_1]);
+        p2.set(axis_2, p2.get(axis_2) - halfsides[axis_2]);
+
+        p3.set(axis_1, p3.get(axis_1) + halfsides[axis_1]);
+        p3.set(axis_2, p3.get(axis_2) + halfsides[axis_2]);
+
+        p4.set(axis_1, p4.get(axis_1) - halfsides[axis_1]);
+        p4.set(axis_2, p4.get(axis_2) + halfsides[axis_2]);
+
+        /*
         p1.set(axis_1, p1.get(axis_1) - halfsides[axis_1]);
         p1.set(axis_2, p1.get(axis_2) + halfsides[axis_2]);
 
@@ -473,6 +491,7 @@ impl Renderer {
 
         p4.set(axis_1, p4.get(axis_1) - halfsides[axis_1]);
         p4.set(axis_2, p4.get(axis_2) - halfsides[axis_2]);
+        */
 
         p1 = p1.transform(transform);
         p2 = p2.transform(transform);

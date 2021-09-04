@@ -64,6 +64,14 @@ impl Vector {
         }
         to_return
     }
+    pub fn plus(&self, rhs: &Self) -> Self {
+        assert!(self.dims >= 3 && rhs.dims >= 3);
+        Self::with_data(vec![
+            self.get(0) + rhs.get(0),
+            self.get(1) + rhs.get(1),
+            self.get(2) + rhs.get(2),
+        ])
+    }
     pub fn minus(&self, rhs: &Self) -> Self {
         assert!(self.dims >= 3 && rhs.dims >= 3);
         Self::with_data(vec![
@@ -71,6 +79,10 @@ impl Vector {
             self.get(1) - rhs.get(1),
             self.get(2) - rhs.get(2),
         ])
+    }
+    pub fn dot(&self, rhs: &Self) -> f32 {
+        assert!(self.dims >= 3 && rhs.dims >= 3);
+        self.get(0) * rhs.get(0) + self.get(1) * rhs.get(1) + self.get(2) * rhs.get(2)
     }
     pub fn cross(&self, rhs: &Self) -> Self {
         assert!(self.dims >= 3 && rhs.dims >= 3);
