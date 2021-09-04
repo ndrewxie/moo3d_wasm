@@ -384,32 +384,24 @@ impl Renderer {
                     tc2y,
                     tc3y,
                 );
+                let mut pixel_color = self.textures[texture_id].sample(tcx, tcy);
+                pixel_color.compose(Color::interp_barycentric(
+                    &bary_interp_params,
+                    u,
+                    v,
+                    w,
+                    interp_z,
+                    light_color_1,
+                    light_color_2,
+                    light_color_3,
+                ));
 
                 self.write_pixel_internal(
                     pixel_iterator.pixel_offset,
                     pixel_iterator.offset,
                     interp_z,
-                    self.textures[texture_id]
-                        .sample(tcx, tcy)
-                        .compose(Color::interp_barycentric(
-                            &bary_interp_params,
-                            u,
-                            v,
-                            w,
-                            interp_z,
-                            light_color_1,
-                            light_color_2,
-                            light_color_3,
-                        )),
+                    pixel_color,
                 );
-                /*
-                self.write_pixel_internal(
-                    pixel_iterator.pixel_offset,
-                    pixel_iterator.offset,
-                    interp_z,
-                    self.textures[texture_id].sample(tcx, tcy),
-                );
-                */
 
                 column_u += dudx;
                 column_v += dvdx;

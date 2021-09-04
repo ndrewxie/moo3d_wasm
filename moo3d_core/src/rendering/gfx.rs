@@ -33,13 +33,10 @@ impl Color {
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self { r, g, b, a }
     }
-    pub fn compose(&self, other: Color) -> Self {
-        Self {
-            r: ((self.r as u32) * (other.r as u32) / 255) as u8,
-            g: ((self.g as u32) * (other.g as u32) / 255) as u8,
-            b: ((self.b as u32) * (other.b as u32) / 255) as u8,
-            a: self.a,
-        }
+    pub fn compose(&mut self, other: Self) {
+        self.r = ((self.r as u32) * (other.r as u32) / 255) as u8;
+        self.g = ((self.g as u32) * (other.g as u32) / 255) as u8;
+        self.b = ((self.b as u32) * (other.b as u32) / 255) as u8;
     }
     pub fn interp_barycentric(
         params: &(f32, f32, f32),
@@ -51,23 +48,33 @@ impl Color {
         c2: Self,
         c3: Self,
     ) -> Self {
-        Self {
-            r: (z
-                * (c1.r as f32 * params.0 * u
-                    + c2.r as f32 * params.1 * v
-                    + c3.r as f32 * params.2 * w)) as u8,
-            g: (z
-                * (c1.g as f32 * params.0 * u
-                    + c2.g as f32 * params.1 * v
-                    + c3.g as f32 * params.2 * w)) as u8,
-            b: (z
-                * (c1.b as f32 * params.0 * u
-                    + c2.b as f32 * params.1 * v
-                    + c3.b as f32 * params.2 * w)) as u8,
-            a: (z
-                * (c1.a as f32 * params.0 * u
-                    + c2.a as f32 * params.1 * v
-                    + c3.a as f32 * params.2 * w)) as u8,
+        unsafe {
+            Self {
+                r: ((z
+                    * (c1.r as f32 * params.0 * u
+                        + c2.r as f32 * params.1 * v
+                        + c3.r as f32 * params.2 * w))
+                    .to_int_unchecked::<i32>()
+                    & 255) as u8,
+                g: ((z
+                    * (c1.g as f32 * params.0 * u
+                        + c2.g as f32 * params.1 * v
+                        + c3.g as f32 * params.2 * w))
+                    .to_int_unchecked::<i32>()
+                    & 255) as u8,
+                b: ((z
+                    * (c1.b as f32 * params.0 * u
+                        + c2.b as f32 * params.1 * v
+                        + c3.b as f32 * params.2 * w))
+                    .to_int_unchecked::<i32>()
+                    & 255) as u8,
+                a: ((z
+                    * (c1.a as f32 * params.0 * u
+                        + c2.a as f32 * params.1 * v
+                        + c3.a as f32 * params.2 * w))
+                    .to_int_unchecked::<i32>()
+                    & 255) as u8,
+            }
         }
     }
 }
@@ -95,20 +102,15 @@ impl Texture {
         /*
         unsafe {
             *self.data.get_unchecked(
-                cmp::min(
-                    TEXTURE_LEN,
-                    cmp::max(
-                        0,
-                        (FTEXTURE_SIZE * v.trunc() + u).to_int_unchecked::<isize>()
-                    )
-                ) as usize
+                ((FTEXTURE_SIZE * v.trunc() + u).to_int_unchecked::<isize>() & TEXTURE_LEN)
+                    as usize,
             )
         }
         */
         unsafe {
             *self.data.get_unchecked(
-                ((FTEXTURE_SIZE * v.trunc() + u).to_int_unchecked::<isize>() & TEXTURE_LEN)
-                    as usize,
+                ((TEXTURE_SIZE * v.to_int_unchecked::<isize>() + u.to_int_unchecked::<isize>())
+                    & TEXTURE_LEN) as usize,
             )
         }
     }
