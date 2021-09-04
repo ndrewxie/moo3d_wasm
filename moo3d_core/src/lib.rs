@@ -4,7 +4,7 @@ pub mod rendering;
 
 use rendering::gfx;
 use rendering::gfx::{Color, Texture};
-use rendering::rendermath::{Matrix, Point3D, Vector, RenderMatrices};
+use rendering::rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 
 #[repr(C)]
 pub struct GameState {
