@@ -410,6 +410,15 @@ impl RenderMatrices {
 
         to_return
     }
+    pub fn identity() -> Matrix {
+        let mut to_return = Matrix::with_fill(4, 4, 0.0);
+        to_return.set(0, 0, 1.0);
+        to_return.set(1, 1, 1.0);
+        to_return.set(2, 2, 1.0);
+        to_return.set(3, 3, 1.0);
+
+        to_return
+    }
     pub fn det_3x3(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32, g: f32, h: f32, i: f32) -> f32 {
         a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
     }
