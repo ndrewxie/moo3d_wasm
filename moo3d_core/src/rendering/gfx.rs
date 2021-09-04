@@ -24,7 +24,8 @@ pub struct Texture {
 #[derive(Debug)]
 pub struct Light {
     color: Color,
-    position: Point3D,
+    intensity: u32,
+    pub position: Point3D,
 }
 
 impl Color {
@@ -113,9 +114,14 @@ impl Texture {
     }
 }
 impl Light {
-    pub fn new(color: Color, position: Point3D) -> Self {
-        Self { color, position }
+    pub fn new(color: Color, intensity: u32, position: Point3D) -> Self {
+        Self {
+            color,
+            intensity,
+            position,
+        }
     }
+    /*
     pub fn intensity(
         &self,
         position: &Point3D,
@@ -124,6 +130,14 @@ impl Light {
         _reflectivity: f32,
     ) -> Color {
         let light_vec = self.position.position.minus(&position.position);
+        if light_vec.dot(normal) < 0.0 {
+            return Color {
+                r: 255,
+                g: 255,
+                b: 255,
+                a: 255,
+            }
+        }
         let camera_vec = camera.position.minus(&position.position);
         let mut half_vec = light_vec.plus(&camera_vec);
         half_vec.normalize_inplace();
@@ -137,6 +151,37 @@ impl Light {
             r: (self.color.r as f32 * to_return) as u8,
             g: (self.color.g as f32 * to_return) as u8,
             b: (self.color.b as f32 * to_return) as u8,
+            a: 255,
+        }
+    }
+    */
+    // still violates conservation of energy but at least is pretty
+    pub fn intensity(
+        &self,
+        position: &Point3D,
+        camera: &Point3D,
+        normal: &Vector,
+        scale: usize,
+    ) -> Color {
+        let light_vec = self.position.position.minus(&position.position);
+        if light_vec.dot(normal) < 0.0 {
+            return Color {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 255,
+            };
+        }
+        let mut light_distance = light_vec.scalar_mul(1.0 / scale as f32).norm2();
+        if light_distance < 0.01 {
+            light_distance = 0.01;
+        }
+        let to_return = cmp::min(255, (self.intensity as f32 / light_distance) as u32);
+
+        Color {
+            r: ((self.color.r as u32 * to_return) / 255) as u8,
+            g: ((self.color.g as u32 * to_return) / 255) as u8,
+            b: ((self.color.b as u32 * to_return) / 255) as u8,
             a: 255,
         }
     }

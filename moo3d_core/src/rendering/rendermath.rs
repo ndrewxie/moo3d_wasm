@@ -46,6 +46,13 @@ impl Vector {
     pub fn get(&self, indx: usize) -> f32 {
         unsafe { *self.elements.get_unchecked(indx) }
     }
+    pub fn norm2(&self) -> f32 {
+        let mut acc: f32 = 0.0;
+        for element in self.elements.iter() {
+            acc += element * element;
+        }
+        acc
+    }
     pub fn norm(&self) -> f32 {
         let mut acc: f32 = 0.0;
         for element in self.elements.iter() {

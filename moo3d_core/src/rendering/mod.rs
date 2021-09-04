@@ -22,6 +22,7 @@ struct PixelIterator {
 pub struct Renderer {
     pub width: usize,
     pub height: usize,
+    pub scale: usize, // side length of 1 block
     pixels: Vec<u8>,
     z_buffer: Vec<f32>,
     pub camera: Camera,
@@ -54,11 +55,14 @@ impl Renderer {
 
         let near = (width as f32 / 2.0) / (fov_horizontal / 2.0).tan();
         let far = near * 200.0;
+        let scale = width / 7;
+
         Self {
             pixels: vec![0; 4 * width * height],
             z_buffer: vec![100000.0; width * height],
             width,
             height,
+            scale,
             camera: Camera::new(
                 Point3D::from_euc_coords(width as isize / 2, height as isize / 2, 0),
                 Point3D::from_euc_coords(width as isize / 2, height as isize / 2, 1),
@@ -68,7 +72,12 @@ impl Renderer {
             textures,
             lights: vec![Light::new(
                 Color::new(255, 0, 0, 255),
-                Point3D::from_euc_coords(width as isize / 2, height as isize, 0),
+                5000,
+                Point3D::from_euc_coords(
+                    width as isize / 2,
+                    (height as isize / 2) - 1 * (scale as isize),
+                    2 * near as isize + 7 * scale as isize,
+                ),
             )],
         }
     }
@@ -242,9 +251,12 @@ impl Renderer {
         }
 
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, texture_id) = texture;
-        let light_color_1 = self.lights[0].intensity(v1, &self.camera.data.position, &normal, 8.0);
-        let light_color_2 = self.lights[0].intensity(v2, &self.camera.data.position, &normal, 8.0);
-        let light_color_3 = self.lights[0].intensity(v3, &self.camera.data.position, &normal, 8.0);
+        let light_color_1 =
+            self.lights[0].intensity(v1, &self.camera.data.position, &normal, self.scale);
+        let light_color_2 =
+            self.lights[0].intensity(v2, &self.camera.data.position, &normal, self.scale);
+        let light_color_3 =
+            self.lights[0].intensity(v3, &self.camera.data.position, &normal, self.scale);
 
         let mut vertices = RenderMatrices::bundle_points(&[v1, v2, v3]);
 

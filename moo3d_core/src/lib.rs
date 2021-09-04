@@ -33,18 +33,19 @@ impl GameState {
         let center_x = self.renderer.width / 2;
         let center_y = self.renderer.height / 2;
         let near = self.renderer.get_near() as isize;
+        let scale = self.renderer.scale as isize;
         self.renderer.clear();
 
         for i in -15..15 {
-            for j in -5..15 {
+            for j in -20..15 {
                 self.renderer.draw_cuboid(
                     &Point3D::from_euc_coords(
-                        center_x as isize + near * i,
-                        center_y as isize + 2 * near,
-                        5 * near + near * j,
+                        center_x as isize + scale * i,
+                        center_y as isize + 2 * scale,
+                        5 * near + scale * j,
                     ),
                     &(0.0, 0.0, 0.0),
-                    &[near as f32, near as f32, near as f32],
+                    &[scale as f32, scale as f32, scale as f32],
                     if i % 2 == 0 { 1 } else { 0 },
                 );
             }
