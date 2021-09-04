@@ -1,34 +1,12 @@
 use std::cmp;
 
+pub mod camera;
 pub mod gfx;
 pub mod rendermath;
 
-use gfx::{Color, Texture, MTEXCOORD};
+use camera::{Camera, CameraCache};
+use gfx::{Color, Light, Texture, MTEXCOORD};
 use rendermath::{Matrix, Point3D, RenderMatrices, Vector};
-
-#[repr(C)]
-pub struct Camera {
-    data: CameraData,
-    cache: CameraCache,
-}
-// ugly as hell but whatever
-struct CameraData {
-    pub position: Point3D,
-    pub target: Point3D,
-    pub near: isize,
-    pub far: isize,
-}
-struct CameraCache {
-    pub view: Option<Matrix>,
-    pub projection: Option<Matrix>,
-    pub reverse: Option<Matrix>,
-}
-
-#[derive(Clone, Copy)]
-pub enum Choice<A, B> {
-    First(A),
-    Second(B),
-}
 
 struct PixelIterator {
     width: usize,
@@ -40,36 +18,6 @@ struct PixelIterator {
     pub pixel_offset: usize,
     pub offset: usize,
 }
-impl PixelIterator {
-    pub fn new(width: usize, height: usize, x: usize, y: usize) -> Self {
-        let pixel_offset: usize = y * width + x;
-        Self {
-            width,
-            height,
-            x,
-            y,
-            pixel_offset,
-            offset: 4 * pixel_offset,
-        }
-    }
-    pub fn next_row(&mut self) {
-        self.y += 1;
-        self.pixel_offset += self.width;
-        self.offset += 4 * self.width;
-    }
-    pub fn next_column(&mut self) {
-        self.x += 1;
-        self.pixel_offset += 1;
-        self.offset += 4;
-    }
-    pub fn move_to(&mut self, x: usize, y: usize) {
-        self.x = x;
-        self.y = y;
-        self.pixel_offset = y * self.width + x;
-        self.offset = 4 * self.pixel_offset;
-    }
-}
-
 #[repr(C)]
 pub struct Renderer {
     pub width: usize,
@@ -77,9 +25,33 @@ pub struct Renderer {
     pixels: Vec<u8>,
     z_buffer: Vec<f32>,
     pub camera: Camera,
+
+    pub textures: Vec<Texture>,
+    pub lights: Vec<Light>,
 }
+
 impl Renderer {
-    pub fn new(width: usize, height: usize, fov_horizontal: f32) -> Self {
+    pub fn new(width: usize, height: usize, fov_horizontal: f32, texture_array: &[u8]) -> Self {
+        let texture_slice_len = (4 * (gfx::TEXTURE_LEN + 1)) as usize;
+
+        let mut textures: Vec<Texture> = Vec::new();
+
+        assert_eq!(texture_array.len() % texture_slice_len, 0);
+
+        let mut acc: Vec<Color> = Vec::new();
+        for pixel_indx in (0..texture_array.len()).step_by(4) {
+            acc.push(Color::new(
+                texture_array[pixel_indx],
+                texture_array[pixel_indx + 1],
+                texture_array[pixel_indx + 2],
+                texture_array[pixel_indx + 3],
+            ));
+            if acc.len() as isize == gfx::TEXTURE_LEN + 1 {
+                textures.push(Texture::new(acc));
+                acc = Vec::new();
+            }
+        }
+
         let near = (width as f32 / 2.0) / (fov_horizontal / 2.0).tan();
         let far = near * 200.0;
         Self {
@@ -93,6 +65,11 @@ impl Renderer {
                 near as isize,
                 far as isize,
             ),
+            textures,
+            lights: vec![Light::new(
+                Color::new(255, 0, 0, 255),
+                Point3D::from_euc_coords(width as isize / 2, height as isize, 0),
+            )],
         }
     }
     pub fn clear(&mut self) {
@@ -249,35 +226,25 @@ impl Renderer {
             }
         }
     }
-    // clockwise is out of the page
-    // Using right hand rule, thumb is normal, index finger gives 2nd point,
-    // middle finger gives first point
-    fn triface_normal(v1: &Point3D, v2: &Point3D, v3: &Point3D) -> Vector {
-        let a = v2.position.minus(&v3.position);
-        let b = v1.position.minus(&v3.position);
-        a.cross(&b).normalize()
-    }
-    fn triface_center(v1: &Point3D, v2: &Point3D, v3: &Point3D) -> Vector {
-        v1.position
-            .plus(&v2.position)
-            .plus(&v3.position)
-            .scalar_mul(1.0 / 3.0)
-    }
     pub fn draw_triface(
         &mut self,
         v1: &Point3D,
         v2: &Point3D,
         v3: &Point3D,
-        texture: (f32, f32, f32, f32, f32, f32, &Texture),
+        texture: (f32, f32, f32, f32, f32, f32, usize),
     ) {
-        if Self::triface_normal(v1, v2, v3)
-            .dot(&Self::triface_center(v1, v2, v3).minus(&self.camera.data.position.position))
-            < 0.0
+        let normal = RenderMatrices::triface_normal(v1, v2, v3);
+        if normal.dot(
+            &RenderMatrices::triface_center(v1, v2, v3).minus(&self.camera.data.position.position),
+        ) > 0.0
         {
             return;
         }
 
-        let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex) = texture;
+        let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, texture_id) = texture;
+        let light_color_1 = self.lights[0].intensity(v1, &self.camera.data.position, &normal, 8.0);
+        let light_color_2 = self.lights[0].intensity(v2, &self.camera.data.position, &normal, 8.0);
+        let light_color_3 = self.lights[0].intensity(v3, &self.camera.data.position, &normal, 8.0);
 
         let mut vertices = RenderMatrices::bundle_points(&[v1, v2, v3]);
 
@@ -410,8 +377,27 @@ impl Renderer {
                     pixel_iterator.pixel_offset,
                     pixel_iterator.offset,
                     interp_z,
-                    tex.sample(tcx, tcy),
+                    self.textures[texture_id]
+                        .sample(tcx, tcy)
+                        .compose(Color::interp_barycentric(
+                            &bary_interp_params,
+                            u,
+                            v,
+                            w,
+                            interp_z,
+                            light_color_1,
+                            light_color_2,
+                            light_color_3,
+                        )),
                 );
+                /*
+                self.write_pixel_internal(
+                    pixel_iterator.pixel_offset,
+                    pixel_iterator.offset,
+                    interp_z,
+                    self.textures[texture_id].sample(tcx, tcy),
+                );
+                */
 
                 column_u += dudx;
                 column_v += dvdx;
@@ -429,7 +415,7 @@ impl Renderer {
         v2: &Point3D,
         v3: &Point3D,
         v4: &Point3D,
-        fill: (f32, f32, f32, f32, f32, f32, f32, f32, &Texture),
+        fill: (f32, f32, f32, f32, f32, f32, f32, f32, usize),
     ) {
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tc4x, tc4y, tex) = fill;
         self.draw_triface(v1, v2, v3, (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex));
@@ -442,7 +428,7 @@ impl Renderer {
         side: usize,
         halfsides: &[f32],
         transform: &Matrix,
-        texture: &Texture,
+        texture: usize,
     ) {
         let x = center.get(0);
         let y = center.get(1);
@@ -521,7 +507,7 @@ impl Renderer {
         position: &Point3D,
         orientation: &(f32, f32, f32),
         dimensions: &[f32],
-        texture: &Texture,
+        texture_id: usize,
     ) {
         let x = position.x_coord();
         let y = position.y_coord();
@@ -537,110 +523,41 @@ impl Renderer {
         let transform =
             RenderMatrices::rotation_3d(*pitch, *roll, *yaw, Some(&(x as f32, y as f32, z as f32)));
 
-        self.draw_cubeface(position, 1, &halfsides, &transform, &texture);
-        self.draw_cubeface(position, 2, &halfsides, &transform, &texture);
-        self.draw_cubeface(position, 3, &halfsides, &transform, &texture);
-        self.draw_cubeface(position, 4, &halfsides, &transform, &texture);
-        self.draw_cubeface(position, 5, &halfsides, &transform, &texture);
-        self.draw_cubeface(position, 6, &halfsides, &transform, &texture);
+        self.draw_cubeface(position, 1, &halfsides, &transform, texture_id);
+        self.draw_cubeface(position, 2, &halfsides, &transform, texture_id);
+        self.draw_cubeface(position, 3, &halfsides, &transform, texture_id);
+        self.draw_cubeface(position, 4, &halfsides, &transform, texture_id);
+        self.draw_cubeface(position, 5, &halfsides, &transform, texture_id);
+        self.draw_cubeface(position, 6, &halfsides, &transform, texture_id);
     }
 }
 
-impl Camera {
-    pub fn new(position: Point3D, target: Point3D, near: isize, far: isize) -> Self {
+impl PixelIterator {
+    pub fn new(width: usize, height: usize, x: usize, y: usize) -> Self {
+        let pixel_offset: usize = y * width + x;
         Self {
-            data: CameraData {
-                position,
-                target,
-                near,
-                far,
-            },
-            cache: CameraCache {
-                view: None,
-                projection: None,
-                reverse: None,
-            },
+            width,
+            height,
+            x,
+            y,
+            pixel_offset,
+            offset: 4 * pixel_offset,
         }
     }
-    pub fn translate(&mut self, dx: isize, dy: isize, dz: isize) {
-        let data = &mut self.data;
-        data.position.set(0, data.position.get(0) + dx as f32);
-        data.position.set(1, data.position.get(1) + dy as f32);
-        data.position.set(2, data.position.get(2) + dz as f32);
-
-        data.target.set(0, data.target.get(0) + dx as f32);
-        data.target.set(1, data.target.get(1) + dy as f32);
-        data.target.set(2, data.target.get(2) + dz as f32);
-
-        self.cache.invalidate();
+    pub fn next_row(&mut self) {
+        self.y += 1;
+        self.pixel_offset += self.width;
+        self.offset += 4 * self.width;
     }
-    pub fn translate_look(&mut self, dx: f32, dy: f32, dz: f32) {
-        let data = &mut self.data;
-        data.target.set(0, data.target.get(0) + dx);
-        data.target.set(1, data.target.get(1) + dy);
-        data.target.set(2, data.target.get(2) + dz);
-
-        self.cache.invalidate();
+    pub fn next_column(&mut self) {
+        self.x += 1;
+        self.pixel_offset += 1;
+        self.offset += 4;
     }
-    pub fn look(&mut self, target: Point3D) {
-        self.data.target = target;
-
-        self.cache.invalidate();
-    }
-}
-impl CameraCache {
-    pub fn invalidate(&mut self) {
-        self.view = None;
-        self.projection = None;
-        self.reverse = None;
-    }
-    pub fn projection<'a>(
-        projection: &'a mut Option<Matrix>,
-        camera_data: &CameraData,
-    ) -> &'a Matrix {
-        if projection.is_none() {
-            *projection = Some(RenderMatrices::projection(
-                camera_data.near,
-                camera_data.far,
-            ));
-        }
-        projection.as_ref().unwrap()
-    }
-    pub fn view<'a>(view: &'a mut Option<Matrix>, camera_data: &CameraData) -> &'a Matrix {
-        if view.is_none() {
-            let mut forward = camera_data
-                .target
-                .position
-                .minus(&camera_data.position.position);
-            forward.normalize_inplace();
-            let right = Vector::with_data(vec![0.0, 1.0, 0.0]).cross(&forward);
-            let up = forward.cross(&right);
-
-            let coord_matrix = Matrix::with_2d_data(&vec![
-                vec![right.get(0), up.get(0), forward.get(0), 0.0],
-                vec![right.get(1), up.get(1), forward.get(1), 0.0],
-                vec![right.get(2), up.get(2), forward.get(2), 0.0],
-                vec![0.0, 0.0, 0.0, 1.0],
-            ]);
-
-            let translation_matrix = RenderMatrices::translation(
-                -1.0 * camera_data.position.get(0),
-                -1.0 * camera_data.position.get(1),
-                -1.0 * camera_data.position.get(2),
-            );
-
-            *view = Some(coord_matrix.matrix_mul(&translation_matrix));
-        }
-        view.as_ref().unwrap()
-    }
-    pub fn reverse<'a>(reverse: &'a mut Option<Matrix>, camera_data: &CameraData) -> &'a Matrix {
-        if reverse.is_none() {
-            *reverse = Some(RenderMatrices::translation(
-                camera_data.position.get(0),
-                camera_data.position.get(1),
-                0.0,
-            ));
-        }
-        reverse.as_ref().unwrap()
+    pub fn move_to(&mut self, x: usize, y: usize) {
+        self.x = x;
+        self.y = y;
+        self.pixel_offset = y * self.width + x;
+        self.offset = 4 * self.pixel_offset;
     }
 }

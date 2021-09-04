@@ -10,34 +10,17 @@ use rendering::rendermath::{Matrix, Point3D, Vector};
 pub struct GameState {
     last_frame: usize,
     renderer: rendering::Renderer,
-    textures: Vec<Texture>,
 }
 impl GameState {
     pub fn new(width: usize, height: usize, texture_array: &[u8]) -> Self {
-        let texture_slice_len = (4 * (gfx::TEXTURE_LEN + 1)) as usize;
-
-        let mut textures: Vec<Texture> = Vec::new();
-
-        assert_eq!(texture_array.len() % texture_slice_len, 0);
-
-        let mut acc: Vec<Color> = Vec::new();
-        for pixel_indx in (0..texture_array.len()).step_by(4) {
-            acc.push(Color::new(
-                texture_array[pixel_indx],
-                texture_array[pixel_indx + 1],
-                texture_array[pixel_indx + 2],
-                texture_array[pixel_indx + 3],
-            ));
-            if acc.len() as isize == gfx::TEXTURE_LEN + 1 {
-                textures.push(Texture::new(acc));
-                acc = Vec::new();
-            }
-        }
-
         Self {
-            renderer: rendering::Renderer::new(width, height, 120.0 * std::f32::consts::PI / 180.0),
+            renderer: rendering::Renderer::new(
+                width,
+                height,
+                120.0 * std::f32::consts::PI / 180.0,
+                texture_array,
+            ),
             last_frame: 0,
-            textures,
         }
     }
     pub fn get_pixels(&self) -> &[u8] {
@@ -62,11 +45,7 @@ impl GameState {
                     ),
                     &(0.0, 0.0, 0.0),
                     &[near as f32, near as f32, near as f32],
-                    if i % 2 == 0 {
-                        &self.textures[1]
-                    } else {
-                        &self.textures[0]
-                    },
+                    if i % 2 == 0 { 1 } else { 0 },
                 );
             }
         }
@@ -83,7 +62,7 @@ impl GameState {
             &Point3D::from_euc_coords(center_x as isize, center_y as isize, 5 * near),
             &(angle, 0.0, angle),
             &[near as f32, near as f32, near as f32],
-            &self.textures[0],
+            0,
         );
     }
     pub fn render(&mut self, curr_time: usize) {

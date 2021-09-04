@@ -438,4 +438,17 @@ impl RenderMatrices {
 
         (u, v, w, dudx, dvdx, dwdx, dudy, dvdy, dwdy)
     }
+    // Using right hand rule, thumb is normal, index finger is 2nd point,
+    // middle finger gives first point, everything is relative to third point
+    pub fn triface_normal(v1: &Point3D, v2: &Point3D, v3: &Point3D) -> Vector {
+        let a = v2.position.minus(&v3.position);
+        let b = v1.position.minus(&v3.position);
+        a.cross(&b).normalize().scalar_mul(-1.0)
+    }
+    pub fn triface_center(v1: &Point3D, v2: &Point3D, v3: &Point3D) -> Vector {
+        v1.position
+            .plus(&v2.position)
+            .plus(&v3.position)
+            .scalar_mul(1.0 / 3.0)
+    }
 }
