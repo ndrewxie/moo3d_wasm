@@ -79,26 +79,15 @@ impl CameraCache {
     }
     pub fn view<'a>(view: &'a mut Option<Matrix>, camera_data: &CameraData) -> &'a Matrix {
         if view.is_none() {
-            let forward = Point3D::from_euc_coords_float(0.0, 0.0, 1.0)
-                .transform(&RenderMatrices::rotation_x(camera_data.target.1))
-                .transform(&RenderMatrices::rotation_y(camera_data.target.0));
-            let right = Vector::with_data(vec![0.0, 1.0, 0.0]).cross(&forward.position);
-            let up = forward.position.cross(&right);
-
-            let coord_matrix = Matrix::with_2d_data(&vec![
-                vec![right.get(0), up.get(0), forward.get(0), 0.0],
-                vec![right.get(1), up.get(1), forward.get(1), 0.0],
-                vec![right.get(2), up.get(2), forward.get(2), 0.0],
-                vec![0.0, 0.0, 0.0, 1.0],
-            ]);
-
-            let translation_matrix = RenderMatrices::translation(
-                -1.0 * camera_data.position.get(0),
-                -1.0 * camera_data.position.get(1),
-                -1.0 * camera_data.position.get(2),
-            );
-
-            *view = Some(coord_matrix.matrix_mul(&translation_matrix));
+            *view = Some(RenderMatrices::compose_transformations(&vec![
+                &RenderMatrices::translation(
+                    -camera_data.position.get(0),
+                    -camera_data.position.get(1),
+                    -camera_data.position.get(2),
+                ),
+                &RenderMatrices::rotation_y(camera_data.target.0),
+                &RenderMatrices::rotation_x(camera_data.target.1),
+            ]));
         }
         view.as_ref().unwrap()
     }
