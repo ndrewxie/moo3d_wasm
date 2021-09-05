@@ -12,7 +12,7 @@ pub fn test_manager(n: usize) {
 
 pub fn main() {
     println!("moo3d_core test starting...");
-    test_manager(500);
+    test_manager(500); // 500
     println!("moo3d_core test finished.");
 }
 
