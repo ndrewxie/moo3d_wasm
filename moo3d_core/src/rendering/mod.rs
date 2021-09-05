@@ -335,7 +335,7 @@ impl Renderer {
 
         let mut pixel_iterator = self.pixel_iterator(min_x as usize, min_y as usize);
 
-        for indy in min_y..max_y {
+        for indy in min_y..=max_y {
             let (x_start, x_end, mut column_u, mut column_v, mut column_w) = {
                 let mut low = 0.0;
                 let mut high = (max_x - min_x) as f32;
@@ -358,7 +358,7 @@ impl Renderer {
             };
             pixel_iterator.move_to((x_start + min_x) as usize, indy as usize);
 
-            for indx in x_start..x_end {
+            for indx in x_start..=x_end {
                 let u = row_u + column_u;
                 let v = row_v + column_v;
                 let w = row_w + column_w;

@@ -14,7 +14,8 @@ all:
 	cp ./moo3d_core/images.bin ./client/images.bin
 	gzip -k ./client/images.bin
 
-	npx http-server ./client/ --gzip -c-1
+	#npx http-server ./client/ --gzip -c-1
+	http-server ./client/ --gzip -c-1
 
 test:
 	clear
