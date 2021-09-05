@@ -10,6 +10,8 @@ pub struct CameraData {
     pub target: (f32, f32), // rotation, inclination
     pub near: f32,
     pub far: f32,
+    pub center_x: f32,
+    pub center_y: f32,
 }
 pub struct CameraCache {
     pub view: Option<Matrix>,
@@ -18,13 +20,22 @@ pub struct CameraCache {
 }
 
 impl Camera {
-    pub fn new(position: Point3D, target: (f32, f32), near: f32, far: f32) -> Self {
+    pub fn new(
+        position: Point3D,
+        target: (f32, f32),
+        near: f32,
+        far: f32,
+        width: usize,
+        height: usize,
+    ) -> Self {
         Self {
             data: CameraData {
                 position,
                 target,
                 near,
                 far,
+                center_x: width as f32 / 2.0,
+                center_y: height as f32 / 2.0,
             },
             cache: CameraCache {
                 view: None,
@@ -94,8 +105,8 @@ impl CameraCache {
     pub fn reverse<'a>(reverse: &'a mut Option<Matrix>, camera_data: &CameraData) -> &'a Matrix {
         if reverse.is_none() {
             *reverse = Some(RenderMatrices::translation(
-                camera_data.position.get(0),
-                camera_data.position.get(1),
+                camera_data.center_x,
+                camera_data.center_y,
                 0.0,
             ));
         }

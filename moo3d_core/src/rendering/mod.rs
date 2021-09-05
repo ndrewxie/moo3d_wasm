@@ -68,6 +68,8 @@ impl Renderer {
                 (0.0, 0.0),
                 near,
                 far,
+                width,
+                height,
             ),
             textures,
             lights: vec![
