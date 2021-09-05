@@ -45,13 +45,12 @@ pub unsafe extern "C" fn translate_camera(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn translate_camera_look(
+pub unsafe extern "C" fn rotate_camera(
     input: *mut moo3d_core::GameState,
-    trans_x: f32,
-    trans_y: f32,
-    trans_z: f32,
+    d_rotation: f32,
+    d_inclination: f32,
 ) {
-    (*input).translate_camera_look(trans_x, trans_y, trans_z);
+    (*input).rotate_camera(d_rotation, d_inclination);
 }
 
 // tests

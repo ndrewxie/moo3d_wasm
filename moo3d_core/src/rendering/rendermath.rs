@@ -313,12 +313,11 @@ impl RenderMatrices {
         }
         to_return
     }
-    pub fn projection(near: isize, far: isize) -> Matrix {
-        let n = near as f32;
-        let f = far as f32;
+    pub fn projection(near: f32, far: f32) -> Matrix {
+        let n = near;
+        let f = far;
         let a = f / (f - n);
-        //let b = -f * n / (f - n);
-        let b = -a * n;
+        let b = -f * n / (f - n);
 
         let mut to_return = Matrix::with_fill(4, 4, 0.0);
         to_return.set(0, 0, n);

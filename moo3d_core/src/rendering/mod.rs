@@ -5,7 +5,7 @@ pub mod gfx;
 pub mod rendermath;
 
 use camera::{Camera, CameraCache};
-use gfx::{Color, Light, Texture, MTEXCOORD};
+use gfx::{Color, Light, Texture};
 use rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 
 struct PixelIterator {
@@ -65,20 +65,31 @@ impl Renderer {
             scale,
             camera: Camera::new(
                 Point3D::from_euc_coords(width as isize / 2, height as isize / 2, 0),
-                Point3D::from_euc_coords(width as isize / 2, height as isize / 2, 1),
-                near as isize,
-                far as isize,
+                (0.0, 0.0),
+                near,
+                far,
             ),
             textures,
-            lights: vec![Light::new(
-                Color::new(255, 0, 0, 255),
-                5000,
-                Point3D::from_euc_coords(
-                    width as isize / 2,
-                    (height as isize / 2) - 1 * (scale as isize),
-                    2 * near as isize + 7 * scale as isize,
+            lights: vec![
+                Light::new(
+                    Color::new(255, 0, 0, 255),
+                    3500,
+                    Point3D::from_euc_coords(
+                        (width as isize / 2) - 3 * (scale as isize),
+                        (height as isize / 2) - 1 * (scale as isize),
+                        2 * near as isize + 1 * scale as isize,
+                    ),
                 ),
-            )],
+                Light::new(
+                    Color::new(0, 255, 0, 255),
+                    3000,
+                    Point3D::from_euc_coords(
+                        (width as isize / 2) + 3 * (scale as isize),
+                        (height as isize / 2) - 1 * (scale as isize),
+                        2 * near as isize + 1 * scale as isize,
+                    ),
+                ),
+            ],
         }
     }
     pub fn clear(&mut self) {
@@ -91,10 +102,10 @@ impl Renderer {
     pub fn get_mut_pixels(&mut self) -> &mut [u8] {
         &mut self.pixels
     }
-    pub fn get_near(&self) -> isize {
+    pub fn get_near(&self) -> f32 {
         self.camera.data.near
     }
-    pub fn get_far(&self) -> isize {
+    pub fn get_far(&self) -> f32 {
         self.camera.data.far
     }
     fn pixel_iterator(&self, x: usize, y: usize) -> PixelIterator {
@@ -117,7 +128,7 @@ impl Renderer {
     }
     fn write_pixel_internal(&mut self, pixel_offset: usize, offset: usize, z: f32, color: Color) {
         unsafe {
-            if z >= *self.z_buffer.get_unchecked(pixel_offset) {
+            if (z >= *self.z_buffer.get_unchecked(pixel_offset)) | (z < 0.0) | (z > 1.0) {
                 return;
             }
 
@@ -235,6 +246,13 @@ impl Renderer {
             }
         }
     }
+    fn vertex_lighting(&self, vertex: &Point3D, normal: &Vector) -> Color {
+        let mut to_return = Color::zero();
+        for light in &self.lights {
+            to_return.add(light.intensity(vertex, &self.camera.data.position, normal, self.scale));
+        }
+        to_return
+    }
     pub fn draw_triface(
         &mut self,
         v1: &Point3D,
@@ -251,12 +269,9 @@ impl Renderer {
         }
 
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, texture_id) = texture;
-        let light_color_1 =
-            self.lights[0].intensity(v1, &self.camera.data.position, &normal, self.scale);
-        let light_color_2 =
-            self.lights[0].intensity(v2, &self.camera.data.position, &normal, self.scale);
-        let light_color_3 =
-            self.lights[0].intensity(v3, &self.camera.data.position, &normal, self.scale);
+        let light_color_1 = self.vertex_lighting(v1, &normal);
+        let light_color_2 = self.vertex_lighting(v2, &normal);
+        let light_color_3 = self.vertex_lighting(v3, &normal);
 
         let mut vertices = RenderMatrices::bundle_points(&[v1, v2, v3]);
 
@@ -267,7 +282,6 @@ impl Renderer {
             );
 
         vertices = forward.matrix_mul(&vertices);
-
         let bary_interp_params = Self::barycentric_interp_params(
             vertices.get(0, 2),
             vertices.get(1, 2),
@@ -358,7 +372,7 @@ impl Renderer {
             };
             pixel_iterator.move_to((x_start + min_x) as usize, indy as usize);
 
-            for indx in x_start..=x_end {
+            for _indx in x_start..=x_end {
                 let u = row_u + column_u;
                 let v = row_v + column_v;
                 let w = row_w + column_w;
@@ -399,7 +413,7 @@ impl Renderer {
                 self.write_pixel_internal(
                     pixel_iterator.pixel_offset,
                     pixel_iterator.offset,
-                    interp_z,
+                    (interp_z - self.get_near()) / (self.get_far() - self.get_near()),
                     pixel_color,
                 );
 
@@ -468,20 +482,6 @@ impl Renderer {
 
         p4.set(axis_1, p4.get(axis_1) - halfsides[axis_1]);
         p4.set(axis_2, p4.get(axis_2) + halfsides[axis_2]);
-
-        /*
-        p1.set(axis_1, p1.get(axis_1) - halfsides[axis_1]);
-        p1.set(axis_2, p1.get(axis_2) + halfsides[axis_2]);
-
-        p2.set(axis_1, p2.get(axis_1) + halfsides[axis_1]);
-        p2.set(axis_2, p2.get(axis_2) + halfsides[axis_2]);
-
-        p3.set(axis_1, p3.get(axis_1) + halfsides[axis_1]);
-        p3.set(axis_2, p3.get(axis_2) - halfsides[axis_2]);
-
-        p4.set(axis_1, p4.get(axis_1) - halfsides[axis_1]);
-        p4.set(axis_2, p4.get(axis_2) - halfsides[axis_2]);
-        */
 
         p1 = p1.transform(transform);
         p2 = p2.transform(transform);

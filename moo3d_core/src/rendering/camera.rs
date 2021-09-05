@@ -7,9 +7,9 @@ pub struct Camera {
 // ugly as hell but whatever
 pub struct CameraData {
     pub position: Point3D,
-    pub target: Point3D,
-    pub near: isize,
-    pub far: isize,
+    pub target: (f32, f32), // rotation, inclination
+    pub near: f32,
+    pub far: f32,
 }
 pub struct CameraCache {
     pub view: Option<Matrix>,
@@ -18,7 +18,7 @@ pub struct CameraCache {
 }
 
 impl Camera {
-    pub fn new(position: Point3D, target: Point3D, near: isize, far: isize) -> Self {
+    pub fn new(position: Point3D, target: (f32, f32), near: f32, far: f32) -> Self {
         Self {
             data: CameraData {
                 position,
@@ -39,22 +39,11 @@ impl Camera {
         data.position.set(1, data.position.get(1) + dy as f32);
         data.position.set(2, data.position.get(2) + dz as f32);
 
-        data.target.set(0, data.target.get(0) + dx as f32);
-        data.target.set(1, data.target.get(1) + dy as f32);
-        data.target.set(2, data.target.get(2) + dz as f32);
-
         self.cache.invalidate();
     }
-    pub fn translate_look(&mut self, dx: f32, dy: f32, dz: f32) {
-        let data = &mut self.data;
-        data.target.set(0, data.target.get(0) + dx);
-        data.target.set(1, data.target.get(1) + dy);
-        data.target.set(2, data.target.get(2) + dz);
-
-        self.cache.invalidate();
-    }
-    pub fn look(&mut self, target: Point3D) {
-        self.data.target = target;
+    pub fn translate_look(&mut self, d_rotation: f32, d_inclination: f32) {
+        self.data.target.0 += d_rotation;
+        self.data.target.1 += d_inclination;
 
         self.cache.invalidate();
     }
@@ -79,13 +68,11 @@ impl CameraCache {
     }
     pub fn view<'a>(view: &'a mut Option<Matrix>, camera_data: &CameraData) -> &'a Matrix {
         if view.is_none() {
-            let mut forward = camera_data
-                .target
-                .position
-                .minus(&camera_data.position.position);
-            forward.normalize_inplace();
-            let right = Vector::with_data(vec![0.0, 1.0, 0.0]).cross(&forward);
-            let up = forward.cross(&right);
+            let forward = Point3D::from_euc_coords_float(0.0, 0.0, 1.0)
+                .transform(&RenderMatrices::rotation_x(camera_data.target.1))
+                .transform(&RenderMatrices::rotation_y(camera_data.target.0));
+            let right = Vector::with_data(vec![0.0, 1.0, 0.0]).cross(&forward.position);
+            let up = forward.position.cross(&right);
 
             let coord_matrix = Matrix::with_2d_data(&vec![
                 vec![right.get(0), up.get(0), forward.get(0), 0.0],

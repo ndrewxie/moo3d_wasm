@@ -2,7 +2,7 @@ use moo3d_core::GameState;
 use std::fs;
 
 pub fn test_manager(n: usize) {
-    let mut gs_manager = GameState::new(1918, 959, &fs::read("images.bin").unwrap());
+    let mut gs_manager = GameState::new(1265, 632, &fs::read("images.bin").unwrap());
     //gs_manager.renderer.camera.translate(0, 0, 2300);
     //let mut gs_manager = GameState::new(1266, 633);
     for j in 0..n {

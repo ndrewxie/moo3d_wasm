@@ -1,6 +1,5 @@
 use std::fs;
 extern crate image;
-use image::{GenericImage, Pixel, Pixels};
 
 pub fn main() {
     println!("cargo:rerun-if-changed=./img");
@@ -9,7 +8,7 @@ pub fn main() {
     let mut buffer: Vec<u8> = Vec::new();
 
     for img_name in images_names.split("\n") {
-        let mut img = image::open("./img/".to_owned() + img_name)
+        let img = image::open("./img/".to_owned() + img_name)
             .unwrap()
             .to_rgba8();
 
@@ -23,5 +22,5 @@ pub fn main() {
             }
         }
     }
-    fs::write("./images.bin", buffer);
+    fs::write("./images.bin", buffer).unwrap();
 }

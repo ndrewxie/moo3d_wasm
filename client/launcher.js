@@ -9,6 +9,14 @@ var height;
 var image_data;
 var ASPECT_RATIO = 2;
 
+// Control variables
+let translate_state = [0, 0, 0];
+let translate_look_state = [0, 0];
+let deltas = [0, 0, 0];
+
+let last_frame = 0;
+let fps = 0;
+
 const mem_size = 50;
 const memory = new WebAssembly.Memory({initial: mem_size, shared: false});
 var import_object = {
@@ -76,17 +84,16 @@ async function launch_init() {
     requestAnimationFrame(renderLoop);
 }
 
-let translate_state = [0, 0, 0];
-let translate_look_state = [0, 0, 0];
-let last_frame = 0;
-let fps = 0;
-
 function renderLoop(curr_time) {
     fps = 1000 / (curr_time - last_frame);
     last_frame = curr_time;
 
+    deltas[0] += translate_state[0];
+    deltas[1] += translate_state[1];
+    deltas[2] += translate_state[2];
+    
     instance.exports.translate_camera(gs_manager, translate_state[0], translate_state[1], translate_state[2]);
-    instance.exports.translate_camera_look(gs_manager, translate_look_state[0], translate_look_state[1], translate_look_state[2]);
+    instance.exports.rotate_camera(gs_manager, translate_look_state[0], translate_look_state[1]);
 
     requestAnimationFrame(renderLoop);
     instance.exports.render_game(gs_manager, curr_time);
@@ -120,16 +127,16 @@ document.addEventListener('keydown', function(e) {
         translate_state = [0, 0, -50];   
     }
     else if (e.key == 'ArrowUp') {
-        translate_look_state = [0, 0.1, 0];
+        translate_look_state = [0, 0.1];
     }
     else if (e.key == 'ArrowLeft') {
-        translate_look_state = [-0.1, 0, 0];
+        translate_look_state = [-0.1, 0];
     }
     else if (e.key == 'ArrowDown') {
-        translate_look_state = [0, -0.1, 0];
+        translate_look_state = [0, -0.1];
     }
     else if (e.key == 'ArrowRight') {
-        translate_look_state = [0.1, 0, 0];
+        translate_look_state = [0.1, 0];
     }
 });
 
@@ -147,12 +154,15 @@ document.addEventListener('keyup', function(e) {
         case 'ArrowDown':
         case 'ArrowLeft':
         case 'ArrowRight':
-            translate_look_state = [0, 0, 0];
+            translate_look_state = [0, 0];
         break;
     }
 });
 
 let fps_meter = document.getElementById('fpsMeter');
 setInterval(function() {
-    fps_meter.innerText = 'FPS: ' + (Math.round(fps * 100) / 100);
+    fps_meter.innerText = 
+        'FPS: ' + (Math.round(fps * 100) / 100) + '\n' +
+        'Deltas: [' + deltas[0] + ', ' + deltas[1] + ', ' + deltas[2] + ']\n' +
+        'Width: ' + width + ", height: " + height;
 }, 2000);

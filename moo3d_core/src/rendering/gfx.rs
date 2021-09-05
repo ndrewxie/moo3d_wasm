@@ -1,4 +1,4 @@
-use crate::rendering::rendermath::{Point3D, RenderMatrices, Vector};
+use crate::rendering::rendermath::{Point3D, Vector};
 use std::cmp;
 
 pub const TEXTURE_SIZE: isize = 128;
@@ -33,10 +33,23 @@ impl Color {
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self { r, g, b, a }
     }
+    pub fn zero() -> Self {
+        Self {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0,
+        }
+    }
     pub fn compose(&mut self, other: Self) {
         self.r = ((self.r as u32) * (other.r as u32) / 255) as u8;
         self.g = ((self.g as u32) * (other.g as u32) / 255) as u8;
         self.b = ((self.b as u32) * (other.b as u32) / 255) as u8;
+    }
+    pub fn add(&mut self, other: Self) {
+        self.r = cmp::min(255, (self.r as u32) + (other.r as u32)) as u8;
+        self.g = cmp::min(255, (self.g as u32) + (other.g as u32)) as u8;
+        self.b = cmp::min(255, (self.b as u32) + (other.b as u32)) as u8;
     }
     pub fn interp_barycentric(
         params: &(f32, f32, f32),
@@ -161,7 +174,7 @@ impl Light {
     pub fn intensity(
         &self,
         position: &Point3D,
-        camera: &Point3D,
+        _camera: &Point3D,
         normal: &Vector,
         scale: usize,
     ) -> Color {

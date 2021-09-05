@@ -2,9 +2,7 @@
 
 pub mod rendering;
 
-use rendering::gfx;
-use rendering::gfx::{Color, Texture};
-use rendering::rendermath::{Matrix, Point3D, RenderMatrices, Vector};
+use rendering::rendermath::{Point3D, RenderMatrices};
 
 #[repr(C)]
 pub struct GameState {
@@ -97,9 +95,9 @@ impl GameState {
     pub fn translate_camera(&mut self, trans_x: isize, trans_y: isize, trans_z: isize) {
         self.renderer.camera.translate(trans_x, trans_y, trans_z);
     }
-    pub fn translate_camera_look(&mut self, trans_x: f32, trans_y: f32, trans_z: f32) {
+    pub fn rotate_camera(&mut self, d_rotation: f32, d_inclination: f32) {
         self.renderer
             .camera
-            .translate_look(trans_x, trans_y, trans_z);
+            .translate_look(d_rotation, d_inclination);
     }
 }
