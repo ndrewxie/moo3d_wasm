@@ -2,22 +2,14 @@ use std::cmp;
 
 pub mod camera;
 pub mod gfx;
+mod pixeliterator;
 pub mod rendermath;
 
 use camera::{Camera, CameraCache};
 use gfx::{Color, Light, Texture};
+use pixeliterator::PixelIterator;
 use rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 
-struct PixelIterator {
-    width: usize,
-    height: usize,
-
-    x: usize,
-    y: usize,
-
-    pub pixel_offset: usize,
-    pub offset: usize,
-}
 #[repr(C)]
 pub struct Renderer {
     pub width: usize,
@@ -110,8 +102,13 @@ impl Renderer {
     pub fn get_far(&self) -> f32 {
         self.camera.data.far
     }
-    fn pixel_iterator(&self, x: usize, y: usize) -> PixelIterator {
-        PixelIterator::new(self.width, self.height, x, y)
+    fn pixel_iterator(
+        &self,
+        x: usize,
+        y: usize,
+        params: &(f32, f32, f32, f32, f32, f32, f32, f32, f32),
+    ) -> PixelIterator {
+        PixelIterator::new(self.width, self.height, x, y, params)
     }
     fn to_render(&self, x: isize, y: isize, z: Option<f32>) -> bool {
         if x < 0 || x >= self.width as isize {
@@ -232,22 +229,6 @@ impl Renderer {
     ) -> f32 {
         z * (v_a * params.0 * u + v_b * params.1 * v + v_c * params.2 * w)
     }
-    // Solves for the range of x-coordinates (euclidean) to make points in the triangle
-    // Call it once for each of the 3 barycentric coordinates (u, v, w)
-    // a is the current row's barycentric coordinate, b is the RECIPROCAL of du/dx, or dv/dx, or
-    // dw/dx
-    fn solve_bary_range(lower: &mut f32, upper: &mut f32, a: f32, b: f32) {
-        let calculated = -a * b;
-        if b >= 0.0 {
-            if *lower < calculated {
-                *lower = calculated;
-            }
-        } else {
-            if *upper > calculated {
-                *upper = calculated;
-            }
-        }
-    }
     fn vertex_lighting(&self, vertex: &Point3D, normal: &Vector) -> Color {
         let mut to_return = Color::zero();
         for light in &self.lights {
@@ -270,25 +251,13 @@ impl Renderer {
             return;
         }
 
-        let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, texture_id) = texture;
-        let light_color_1 = self.vertex_lighting(v1, &normal);
-        let light_color_2 = self.vertex_lighting(v2, &normal);
-        let light_color_3 = self.vertex_lighting(v3, &normal);
-
-        let mut vertices = RenderMatrices::bundle_points(&[v1, v2, v3]);
-
         let forward = CameraCache::view(&mut self.camera.cache.view, &self.camera.data);
         let reverse =
             CameraCache::reverse(&mut self.camera.cache.reverse, &self.camera.data).matrix_mul(
                 CameraCache::projection(&mut self.camera.cache.projection, &self.camera.data),
             );
 
-        vertices = forward.matrix_mul(&vertices);
-        let bary_interp_params = Self::barycentric_interp_params(
-            vertices.get(0, 2),
-            vertices.get(1, 2),
-            vertices.get(2, 2),
-        );
+        let vertices = forward.matrix_mul(&RenderMatrices::bundle_points(&[v1, v2, v3]));
 
         let proj = RenderMatrices::split_points(&reverse.matrix_mul(&vertices));
 
@@ -310,74 +279,52 @@ impl Renderer {
         let p3y_f = proj[2].get(1);
         let p3z = proj[2].z_coord_float();
 
-        let render1 = self.to_render(p1x, p1y, Some(p1z));
-        let render2 = self.to_render(p2x, p2y, Some(p2z));
-        let render3 = self.to_render(p3x, p3y, Some(p3z));
-        if (!render1) && (!render2) && (!render3) {
+        if (!self.to_render(p1x, p1y, Some(p1z)))
+            && (!self.to_render(p2x, p2y, Some(p2z)))
+            && (!self.to_render(p3x, p3y, Some(p3z)))
+        {
             return;
         }
+
+        let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, texture_id) = texture;
+        let light_color_1 = self.vertex_lighting(v1, &normal);
+        let light_color_2 = self.vertex_lighting(v2, &normal);
+        let light_color_3 = self.vertex_lighting(v3, &normal);
+
+        let bary_interp_params = Self::barycentric_interp_params(
+            vertices.get(0, 2),
+            vertices.get(1, 2),
+            vertices.get(2, 2),
+        );
 
         let min_x = cmp::max(0, cmp::min(cmp::min(p1x, p2x), p3x));
         let min_y = cmp::max(0, cmp::min(cmp::min(p1y, p2y), p3y));
         let max_x = cmp::min(self.width as isize - 1, cmp::max(cmp::max(p1x, p2x), p3x));
         let max_y = cmp::min(self.height as isize - 1, cmp::max(cmp::max(p1y, p2y), p3y));
 
-        let (mut row_u, mut row_v, mut row_w, dudx, dvdx, dwdx, dudy, dvdy, dwdy) =
-            RenderMatrices::barycentric_params(
-                min_x as f32,
-                min_y as f32,
-                p1x_f,
-                p1y_f,
-                p2x_f,
-                p2y_f,
-                p3x_f,
-                p3y_f,
-            );
-        let inv_dudx: Option<f32> = if dudx.abs() <= 0.00001 {
-            None
-        } else {
-            Some(1.0 / dudx)
-        };
-        let inv_dvdx: Option<f32> = if dvdx.abs() <= 0.00001 {
-            None
-        } else {
-            Some(1.0 / dvdx)
-        };
-        let inv_dwdx: Option<f32> = if dwdx.abs() <= 0.00001 {
-            None
-        } else {
-            Some(1.0 / dwdx)
-        };
+        let barycentric_params = RenderMatrices::barycentric_params(
+            min_x as f32,
+            min_y as f32,
+            p1x_f,
+            p1y_f,
+            p2x_f,
+            p2y_f,
+            p3x_f,
+            p3y_f,
+        );
 
-        let mut pixel_iterator = self.pixel_iterator(min_x as usize, min_y as usize);
+        let mut pixel_iterator =
+            self.pixel_iterator(min_x as usize, min_y as usize, &barycentric_params);
+        let z_map_denominator = 1.0 / (self.get_far() - self.get_near());
 
         for indy in min_y..=max_y {
-            let (x_start, x_end, mut column_u, mut column_v, mut column_w) = {
-                let mut low = 0.0;
-                let mut high = (max_x - min_x) as f32;
-                if inv_dudx.is_some() {
-                    Self::solve_bary_range(&mut low, &mut high, row_u, inv_dudx.unwrap())
-                }
-                if inv_dvdx.is_some() {
-                    Self::solve_bary_range(&mut low, &mut high, row_v, inv_dvdx.unwrap())
-                }
-                if inv_dwdx.is_some() {
-                    Self::solve_bary_range(&mut low, &mut high, row_w, inv_dwdx.unwrap())
-                }
-                (
-                    low as isize,
-                    (high + 0.5) as isize,
-                    dudx * low,
-                    dvdx * low,
-                    dwdx * low,
-                )
-            };
-            pixel_iterator.move_to((x_start + min_x) as usize, indy as usize);
+            let [x_start, x_end] = pixel_iterator.solve_x_range(min_x, max_x);
+            pixel_iterator.set_x(x_start + min_x);
 
             for _indx in x_start..=x_end {
-                let u = row_u + column_u;
-                let v = row_v + column_v;
-                let w = row_w + column_w;
+                let u = pixel_iterator.u;
+                let v = pixel_iterator.v;
+                let w = pixel_iterator.w;
 
                 let interp_z = Self::interp_barycentric_z(&bary_interp_params, u, v, w);
                 let tcx = Self::interp_barycentric(
@@ -415,18 +362,12 @@ impl Renderer {
                 self.write_pixel_internal(
                     pixel_iterator.pixel_offset,
                     pixel_iterator.offset,
-                    (interp_z - self.get_near()) / (self.get_far() - self.get_near()),
+                    (interp_z - self.get_near()) * z_map_denominator,
                     pixel_color,
                 );
-
-                column_u += dudx;
-                column_v += dvdx;
-                column_w += dwdx;
                 pixel_iterator.next_column();
             }
-            row_u += dudy;
-            row_v += dvdy;
-            row_w += dwdy;
+            pixel_iterator.next_row();
         }
     }
     pub fn draw_quadface(
@@ -535,35 +476,5 @@ impl Renderer {
         self.draw_cubeface(position, 4, &halfsides, &transform, texture_id);
         self.draw_cubeface(position, 5, &halfsides, &transform, texture_id);
         self.draw_cubeface(position, 6, &halfsides, &transform, texture_id);
-    }
-}
-
-impl PixelIterator {
-    pub fn new(width: usize, height: usize, x: usize, y: usize) -> Self {
-        let pixel_offset: usize = y * width + x;
-        Self {
-            width,
-            height,
-            x,
-            y,
-            pixel_offset,
-            offset: 4 * pixel_offset,
-        }
-    }
-    pub fn next_row(&mut self) {
-        self.y += 1;
-        self.pixel_offset += self.width;
-        self.offset += 4 * self.width;
-    }
-    pub fn next_column(&mut self) {
-        self.x += 1;
-        self.pixel_offset += 1;
-        self.offset += 4;
-    }
-    pub fn move_to(&mut self, x: usize, y: usize) {
-        self.x = x;
-        self.y = y;
-        self.pixel_offset = y * self.width + x;
-        self.offset = 4 * self.pixel_offset;
     }
 }
