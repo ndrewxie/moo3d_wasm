@@ -232,9 +232,11 @@ impl Point3D {
         self.position.homo_to_euc_inplace();
     }
     pub fn transform(&self, target: &Matrix) -> Self {
-        Self {
+        let mut to_return = Self {
             position: target.vector_mul(&self.position),
-        }
+        };
+        to_return.homo_to_euc();
+        to_return
     }
 
     #[inline(always)]

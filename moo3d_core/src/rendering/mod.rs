@@ -257,31 +257,26 @@ impl Renderer {
                 CameraCache::projection(&mut self.camera.cache.projection, &self.camera.data),
             );
 
-        let vertices = forward.matrix_mul(&RenderMatrices::bundle_points(&[v1, v2, v3]));
+        let vertex1 = v1.transform(&forward);
+        let vertex2 = v2.transform(&forward);
+        let vertex3 = v3.transform(&forward);
 
-        let proj = RenderMatrices::split_points(&reverse.matrix_mul(&vertices));
+        let mut projected1 = vertex1.transform(&reverse);
+        let mut projected2 = vertex2.transform(&reverse);
+        let mut projected3 = vertex3.transform(&reverse);
 
-        let p1x = proj[0].x_coord();
-        let p1y = proj[0].y_coord();
-        let p1x_f = proj[0].get(0);
-        let p1y_f = proj[0].get(1);
-        let p1z = proj[0].z_coord_float();
+        let p1x = projected1.x_coord();
+        let p1y = projected1.y_coord();
 
-        let p2x = proj[1].x_coord();
-        let p2y = proj[1].y_coord();
-        let p2x_f = proj[1].get(0);
-        let p2y_f = proj[1].get(1);
-        let p2z = proj[1].z_coord_float();
+        let p2x = projected2.x_coord();
+        let p2y = projected2.y_coord();
 
-        let p3x = proj[2].x_coord();
-        let p3y = proj[2].y_coord();
-        let p3x_f = proj[2].get(0);
-        let p3y_f = proj[2].get(1);
-        let p3z = proj[2].z_coord_float();
+        let p3x = projected3.x_coord();
+        let p3y = projected3.y_coord();
 
-        if (!self.to_render(p1x, p1y, Some(p1z)))
-            && (!self.to_render(p2x, p2y, Some(p2z)))
-            && (!self.to_render(p3x, p3y, Some(p3z)))
+        if (!self.to_render(p1x, p1y, Some(projected1.z_coord_float())))
+            && (!self.to_render(p2x, p2y, Some(projected2.z_coord_float())))
+            && (!self.to_render(p3x, p3y, Some(projected3.z_coord_float())))
         {
             return;
         }
@@ -292,9 +287,9 @@ impl Renderer {
         let light_color_3 = self.vertex_lighting(v3, &normal);
 
         let bary_interp_params = Self::barycentric_interp_params(
-            vertices.get(0, 2),
-            vertices.get(1, 2),
-            vertices.get(2, 2),
+            vertex1.z_coord_float(),
+            vertex2.z_coord_float(),
+            vertex3.z_coord_float(),
         );
 
         let min_x = cmp::max(0, cmp::min(cmp::min(p1x, p2x), p3x));
@@ -305,12 +300,12 @@ impl Renderer {
         let barycentric_params = RenderMatrices::barycentric_params(
             min_x as f32,
             min_y as f32,
-            p1x_f,
-            p1y_f,
-            p2x_f,
-            p2y_f,
-            p3x_f,
-            p3y_f,
+            projected1.get(0),
+            projected1.get(1),
+            projected2.get(0),
+            projected2.get(1),
+            projected3.get(0),
+            projected3.get(1),
         );
 
         let mut pixel_iterator =
