@@ -6,7 +6,7 @@ mod pixeliterator;
 pub mod rendermath;
 
 use camera::{Camera, CameraCache};
-use gfx::{Color, Light, Texture};
+use gfx::{Color, FarLight, Light, NearLight, Texture};
 use pixeliterator::PixelIterator;
 use rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 
@@ -65,7 +65,7 @@ impl Renderer {
             ),
             textures,
             lights: vec![
-                Light::new(
+                Light::Near(NearLight::new(
                     Color::new(255, 0, 0, 255),
                     3500,
                     Point3D::from_euc_coords(
@@ -73,8 +73,8 @@ impl Renderer {
                         (height as isize / 2) - 1 * (scale as isize),
                         2 * near as isize + 1 * scale as isize,
                     ),
-                ),
-                Light::new(
+                )),
+                Light::Near(NearLight::new(
                     Color::new(0, 255, 0, 255),
                     3000,
                     Point3D::from_euc_coords(
@@ -82,7 +82,12 @@ impl Renderer {
                         (height as isize / 2) - 1 * (scale as isize),
                         2 * near as isize + 1 * scale as isize,
                     ),
-                ),
+                )),
+                Light::Far(FarLight::new(
+                    Color::new(0, 0, 255, 255),
+                    175,
+                    Vector::with_data(vec![0.0, 1.0, 0.0]),
+                )),
             ],
         }
     }
@@ -232,7 +237,7 @@ impl Renderer {
     fn vertex_lighting(&self, vertex: &Point3D, normal: &Vector) -> Color {
         let mut to_return = Color::zero();
         for light in &self.lights {
-            to_return.add(light.intensity(vertex, &self.camera.data.position, normal, self.scale));
+            to_return.add(light.intensity(vertex, normal, self.scale));
         }
         to_return
     }
@@ -261,9 +266,9 @@ impl Renderer {
         let vertex2 = v2.transform(&forward);
         let vertex3 = v3.transform(&forward);
 
-        let mut projected1 = vertex1.transform(&reverse);
-        let mut projected2 = vertex2.transform(&reverse);
-        let mut projected3 = vertex3.transform(&reverse);
+        let projected1 = vertex1.transform(&reverse);
+        let projected2 = vertex2.transform(&reverse);
+        let projected3 = vertex3.transform(&reverse);
 
         let p1x = projected1.x_coord();
         let p1y = projected1.y_coord();
@@ -312,7 +317,7 @@ impl Renderer {
             self.pixel_iterator(min_x as usize, min_y as usize, &barycentric_params);
         let z_map_denominator = 1.0 / (self.get_far() - self.get_near());
 
-        for indy in min_y..=max_y {
+        for _indy in min_y..=max_y {
             let [x_start, x_end] = pixel_iterator.solve_x_range(min_x, max_x);
             pixel_iterator.set_x(x_start + min_x);
 

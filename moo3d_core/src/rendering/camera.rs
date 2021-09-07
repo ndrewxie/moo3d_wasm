@@ -1,4 +1,4 @@
-use crate::rendering::rendermath::{Matrix, Point3D, RenderMatrices, Vector};
+use crate::rendering::rendermath::{Matrix, Point3D, RenderMatrices};
 
 pub struct Camera {
     pub data: CameraData,

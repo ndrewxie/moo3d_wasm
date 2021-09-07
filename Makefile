@@ -30,7 +30,14 @@ profile:
 	cp `find ./target/release/deps/ -maxdepth 1 -name "*moo3d_test*" ! -name "*.*"` ./profiling/profile_target
 	cp ./moo3d_core/images.bin ./profiling/
 
-callgrind: profile
+callgrind:
+	clear
+	cargo build --release -p moo3d_core --bin moo3d_test --features moo3d_core/callgrind
+
+	rm -rf ./profiling
+	mkdir -p ./profiling
+	cp `find ./target/release/deps/ -maxdepth 1 -name "*moo3d_test*" ! -name "*.*"` ./profiling/profile_target
+	cp ./moo3d_core/images.bin ./profiling/
 	cd ./profiling && valgrind --tool=callgrind --branch-sim=yes --cache-sim=yes --simulate-wb=yes ./profile_target 
 
 sanitize:

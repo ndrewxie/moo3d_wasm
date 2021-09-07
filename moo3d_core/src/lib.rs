@@ -113,8 +113,8 @@ impl GameState {
     pub fn render(&mut self, curr_time: usize) {
         //self.render_spinningcube(curr_time);
         //self.render_cubeplane(curr_time);
-        //self.render_faceplane(curr_time);
-        self.render_facewall(curr_time);
+        self.render_faceplane(curr_time);
+        //self.render_facewall(curr_time);
     }
     pub fn translate_camera(&mut self, trans_x: isize, trans_y: isize, trans_z: isize) {
         self.renderer.camera.translate(trans_x, trans_y, trans_z);

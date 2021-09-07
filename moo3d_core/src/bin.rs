@@ -11,9 +11,18 @@ pub fn test_manager(n: usize) {
 }
 
 pub fn main() {
-    println!("moo3d_core test starting...");
-    test_manager(500); // 500
-    println!("moo3d_core test finished.");
+    #[cfg(feature = "callgrind")]
+    {
+        println!("callgrind starting...");
+        test_manager(50); // 500
+        println!("callgrind finished.");
+    }
+    #[cfg(not(feature = "callgrind"))]
+    {
+        println!("moo3d_core test starting...");
+        test_manager(500); // 500
+        println!("moo3d_core test finished.");
+    }
 }
 
 #[cfg(test)]

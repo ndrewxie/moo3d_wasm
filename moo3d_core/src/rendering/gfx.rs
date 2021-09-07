@@ -22,10 +22,20 @@ pub struct Texture {
     data: Vec<Color>,
 }
 #[derive(Debug)]
-pub struct Light {
+pub struct NearLight {
     color: Color,
     intensity: u32,
     pub position: Point3D,
+}
+#[derive(Debug)]
+pub struct FarLight {
+    color: Color,
+    intensity: u32,
+    pub direction: Vector,
+}
+pub enum Light {
+    Near(NearLight),
+    Far(FarLight),
 }
 
 impl Color {
@@ -128,7 +138,7 @@ impl Texture {
         }
     }
 }
-impl Light {
+impl NearLight {
     pub fn new(color: Color, intensity: u32, position: Point3D) -> Self {
         Self {
             color,
@@ -136,48 +146,8 @@ impl Light {
             position,
         }
     }
-    /*
-    pub fn intensity(
-        &self,
-        position: &Point3D,
-        camera: &Point3D,
-        normal: &Vector,
-        _reflectivity: f32,
-    ) -> Color {
-        let light_vec = self.position.position.minus(&position.position);
-        if light_vec.dot(normal) < 0.0 {
-            return Color {
-                r: 255,
-                g: 255,
-                b: 255,
-                a: 255,
-            }
-        }
-        let camera_vec = camera.position.minus(&position.position);
-        let mut half_vec = light_vec.plus(&camera_vec);
-        half_vec.normalize_inplace();
-
-        let mut to_return: f32 = normal.dot(&half_vec);
-        if to_return <= 0.0 {
-            to_return = 0.0;
-        }
-
-        Color {
-            r: (self.color.r as f32 * to_return) as u8,
-            g: (self.color.g as f32 * to_return) as u8,
-            b: (self.color.b as f32 * to_return) as u8,
-            a: 255,
-        }
-    }
-    */
     // still violates conservation of energy but at least is pretty
-    pub fn intensity(
-        &self,
-        position: &Point3D,
-        _camera: &Point3D,
-        normal: &Vector,
-        scale: usize,
-    ) -> Color {
+    pub fn intensity(&self, position: &Point3D, normal: &Vector, scale: usize) -> Color {
         let light_vec = self.position.position.minus(&position.position);
         if light_vec.dot(normal) < 0.0 {
             return Color {
@@ -198,6 +168,42 @@ impl Light {
             g: ((self.color.g as u32 * to_return) / 255) as u8,
             b: ((self.color.b as u32 * to_return) / 255) as u8,
             a: 255,
+        }
+    }
+}
+impl FarLight {
+    pub fn new(color: Color, intensity: u32, direction: Vector) -> Self {
+        Self {
+            color,
+            intensity,
+            direction: direction.scalar_mul(-1.0),
+        }
+    }
+    // still violates conservation of energy but at least is pretty
+    pub fn intensity(&self, normal: &Vector, _scale: usize) -> Color {
+        let light_vec = &self.direction;
+        if light_vec.dot(normal) < 0.0 {
+            return Color {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 255,
+            };
+        }
+
+        Color {
+            r: ((self.color.r as u32 * self.intensity) / 255) as u8,
+            g: ((self.color.g as u32 * self.intensity) / 255) as u8,
+            b: ((self.color.b as u32 * self.intensity) / 255) as u8,
+            a: 255,
+        }
+    }
+}
+impl Light {
+    pub fn intensity(&self, position: &Point3D, normal: &Vector, scale: usize) -> Color {
+        match self {
+            Self::Near(near_light) => near_light.intensity(position, normal, scale),
+            Self::Far(far_light) => far_light.intensity(normal, scale),
         }
     }
 }

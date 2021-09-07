@@ -17,6 +17,9 @@ path = "src/bin.rs"
 
 [dependencies]
 
+[features]
+callgrind = []
+
 [profile.release]
 opt-level = 3
 lto = true
