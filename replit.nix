@@ -7,6 +7,5 @@
         pkgs.nodePackages.npm
         pkgs.nodePackages.http-server
         pkgs.gzip
-        pkgs.cargo-flamegraph
     ];
 }

@@ -1,4 +1,4 @@
-use moo3d_core::GameState;
+use m3d_core::GameState;
 use std::fs;
 
 pub fn test_manager(n: usize) {

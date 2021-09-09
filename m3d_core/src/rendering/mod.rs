@@ -10,7 +10,6 @@ use gfx::{Color, FarLight, Light, NearLight, Texture};
 use pixeliterator::PixelIterator;
 use rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 
-#[repr(C)]
 pub struct Renderer {
     pub width: usize,
     pub height: usize,
@@ -21,6 +20,15 @@ pub struct Renderer {
 
     pub textures: Vec<Texture>,
     pub lights: Vec<Light>,
+}
+#[derive(Clone, Copy)]
+pub enum CubeFace {
+    PlusX,
+    PlusY,
+    PlusZ,
+    MinusX,
+    MinusY,
+    MinusZ,
 }
 
 impl Renderer {
@@ -246,7 +254,7 @@ impl Renderer {
         v1: &Point3D,
         v2: &Point3D,
         v3: &Point3D,
-        texture: (f32, f32, f32, f32, f32, f32, usize),
+        texture: (f32, f32, f32, f32, f32, f32, u16),
     ) {
         let normal = RenderMatrices::triface_normal(v1, v2, v3);
         if normal.dot(
@@ -347,7 +355,7 @@ impl Renderer {
                     tc2y,
                     tc3y,
                 );
-                let mut pixel_color = self.textures[texture_id].sample(tcx, tcy);
+                let mut pixel_color = self.textures[texture_id as usize].sample(tcx, tcy);
                 pixel_color.compose(Color::interp_barycentric(
                     &bary_interp_params,
                     u,
@@ -376,7 +384,7 @@ impl Renderer {
         v2: &Point3D,
         v3: &Point3D,
         v4: &Point3D,
-        fill: (f32, f32, f32, f32, f32, f32, f32, f32, usize),
+        fill: (f32, f32, f32, f32, f32, f32, f32, f32, u16),
     ) {
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tc4x, tc4y, tex) = fill;
         self.draw_triface(v1, v2, v3, (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex));
@@ -386,10 +394,10 @@ impl Renderer {
     pub fn draw_cubeface(
         &mut self,
         center: &Point3D,
-        side: usize,
+        side: CubeFace,
         halfsides: &[f32],
         transform: &Matrix,
-        texture: usize,
+        texture: u16,
     ) {
         let x = center.get(0);
         let y = center.get(1);
@@ -397,15 +405,12 @@ impl Renderer {
 
         let (offset_x, offset_y, offset_z, axis_1, axis_2) = {
             match side {
-                1 => (0.0, 0.0, halfsides[2] as f32, 0, 1),
-                2 => (-(halfsides[0] as f32), 0.0, 0.0, 2, 1),
-                3 => (0.0, halfsides[1] as f32, 0.0, 2, 0),
-                4 => (halfsides[0] as f32, 0.0, 0.0, 1, 2),
-                5 => (0.0, -(halfsides[1] as f32), 0.0, 0, 2),
-                6 => (0.0, 0.0, -(halfsides[2] as f32), 1, 0),
-                _ => {
-                    unreachable!()
-                }
+                CubeFace::PlusZ => (0.0, 0.0, halfsides[2] as f32, 0, 1),
+                CubeFace::MinusX => (-(halfsides[0] as f32), 0.0, 0.0, 2, 1),
+                CubeFace::PlusY => (0.0, halfsides[1] as f32, 0.0, 2, 0),
+                CubeFace::PlusX => (halfsides[0] as f32, 0.0, 0.0, 1, 2),
+                CubeFace::MinusY => (0.0, -(halfsides[1] as f32), 0.0, 0, 2),
+                CubeFace::MinusZ => (0.0, 0.0, -(halfsides[2] as f32), 1, 0),
             }
         };
 
@@ -454,7 +459,7 @@ impl Renderer {
         position: &Point3D,
         orientation: &(f32, f32, f32),
         dimensions: &[f32],
-        texture_id: usize,
+        texture_id: u16,
     ) {
         let x = position.x_coord();
         let y = position.y_coord();
@@ -470,11 +475,47 @@ impl Renderer {
         let transform =
             RenderMatrices::rotation_3d(*pitch, *roll, *yaw, Some(&(x as f32, y as f32, z as f32)));
 
-        self.draw_cubeface(position, 1, &halfsides, &transform, texture_id);
-        self.draw_cubeface(position, 2, &halfsides, &transform, texture_id);
-        self.draw_cubeface(position, 3, &halfsides, &transform, texture_id);
-        self.draw_cubeface(position, 4, &halfsides, &transform, texture_id);
-        self.draw_cubeface(position, 5, &halfsides, &transform, texture_id);
-        self.draw_cubeface(position, 6, &halfsides, &transform, texture_id);
+        self.draw_cubeface(
+            position,
+            CubeFace::PlusZ,
+            &halfsides,
+            &transform,
+            texture_id,
+        );
+        self.draw_cubeface(
+            position,
+            CubeFace::MinusX,
+            &halfsides,
+            &transform,
+            texture_id,
+        );
+        self.draw_cubeface(
+            position,
+            CubeFace::PlusY,
+            &halfsides,
+            &transform,
+            texture_id,
+        );
+        self.draw_cubeface(
+            position,
+            CubeFace::PlusX,
+            &halfsides,
+            &transform,
+            texture_id,
+        );
+        self.draw_cubeface(
+            position,
+            CubeFace::MinusY,
+            &halfsides,
+            &transform,
+            texture_id,
+        );
+        self.draw_cubeface(
+            position,
+            CubeFace::MinusZ,
+            &halfsides,
+            &transform,
+            texture_id,
+        );
     }
 }

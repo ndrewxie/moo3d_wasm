@@ -1,5 +1,5 @@
 [package]
-name = "moo3d_wasm"
+name = "m3d_wasm"
 version = "0.1.0"
 authors = ["ykS"]
 
@@ -7,10 +7,9 @@ authors = ["ykS"]
 crate-type = ["cdylib"]
 
 [dependencies]
-wee_alloc = "0.4.5"
 
-[dependencies.moo3d_core]
-path = "./moo3d_core"
+[dependencies.m3d_core]
+path = "./m3d_core"
 
 [profile.release]
 opt-level = 3

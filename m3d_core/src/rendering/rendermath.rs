@@ -1,17 +1,14 @@
-#[repr(C)]
 #[derive(Debug)]
 pub struct Vector {
     pub elements: Vec<f32>,
     pub dims: usize,
 }
-#[repr(C)]
 #[derive(Debug)]
 pub struct Matrix {
     pub width: usize,
     pub height: usize,
     pub elements: Vec<f32>,
 }
-#[repr(C)]
 #[derive(Debug)]
 pub struct Point3D {
     pub position: Vector,

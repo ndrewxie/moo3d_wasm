@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 
+pub mod entities;
 pub mod rendering;
 
+use entities::{Block, Material, Shape};
 use rendering::rendermath::{Point3D, RenderMatrices};
 
 #[repr(C)]
@@ -57,14 +59,14 @@ impl GameState {
         self.renderer.clear();
 
         for i in -30..30 {
-            for j in -35..30 {
+            for j in -30..30 {
                 self.renderer.draw_cubeface(
                     &Point3D::from_euc_coords(
                         center_x as isize + scale * i,
                         center_y as isize + 2 * scale,
                         5 * near + scale * j,
                     ),
-                    5,
+                    rendering::CubeFace::MinusY,
                     &[scale as f32 * 0.5, scale as f32 * 0.5, scale as f32 * 0.5],
                     &RenderMatrices::identity(),
                     if i % 2 == 0 { 1 } else { 0 },
@@ -87,7 +89,7 @@ impl GameState {
                         center_y as isize + j * scale,
                         5 * near,
                     ),
-                    6,
+                    rendering::CubeFace::MinusZ,
                     &[scale as f32 * 0.5, scale as f32 * 0.5, scale as f32 * 0.5],
                     &RenderMatrices::identity(),
                     if i % 2 == 0 { 1 } else { 0 },

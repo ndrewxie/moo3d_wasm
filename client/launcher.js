@@ -22,7 +22,7 @@ const memory = new WebAssembly.Memory({initial: mem_size, shared: false});
 var import_object = {
     env: {memory}
 };
-WebAssembly.instantiateStreaming(fetch('moo3d_wasm.wasm'), import_object)
+WebAssembly.instantiateStreaming(fetch('m3d_wasm.wasm'), import_object)
 .then(async results => {
     if (test_wasm(results.instance)) {
         console.log('WASM PASSED');

@@ -10,7 +10,6 @@ pub const MTEXCOORD: f32 = MAX_TEXTURE_COORD as f32;
 const EIGHT_PI: f32 = 8.0 * std::f32::consts::PI;
 
 #[derive(Debug, Clone, Copy)]
-#[repr(C)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
