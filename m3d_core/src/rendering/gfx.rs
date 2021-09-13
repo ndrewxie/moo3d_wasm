@@ -1,4 +1,4 @@
-use crate::rendering::rendermath::{Point3D, Vector};
+use crate::rendermath::{Point3D, Vector};
 use std::cmp;
 
 pub const TEXTURE_SIZE: isize = 128;
@@ -156,7 +156,7 @@ impl NearLight {
                 a: 255,
             };
         }
-        let mut light_distance = light_vec.scalar_mul(1.0 / scale as f32).norm2();
+        let mut light_distance = light_vec.scalar_mul(1.0 / (4.0 * scale as f32)).norm2();
         if light_distance < 0.01 {
             light_distance = 0.01;
         }

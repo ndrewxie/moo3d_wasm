@@ -27,27 +27,33 @@ pub extern "C" fn get_pixel_data(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn render_game(input: *mut m3d_core::GameState, curr_time: usize) {
-    (*input).render(curr_time);
+pub extern "C" fn render_game(input: *mut m3d_core::GameState, curr_time: usize) {
+    unsafe {
+        (*input).render(curr_time);
+    }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn translate_camera(
+pub extern "C" fn translate_camera(
     input: *mut m3d_core::GameState,
     trans_x: isize,
     trans_y: isize,
     trans_z: isize,
 ) {
-    (*input).translate_camera(trans_x, trans_y, trans_z);
+    unsafe {
+        (*input).translate_camera(trans_x, trans_y, trans_z);
+    }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rotate_camera(
+pub extern "C" fn rotate_camera(
     input: *mut m3d_core::GameState,
     d_rotation: f32,
     d_inclination: f32,
 ) {
-    (*input).rotate_camera(d_rotation, d_inclination);
+    unsafe {
+        (*input).rotate_camera(d_rotation, d_inclination);
+    }
 }
 
 // tests
@@ -57,6 +63,6 @@ pub extern "C" fn test_return_5() -> usize {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn test_return_arr() -> *mut wasm_interopt::Uint8Array {
-    wasm_interopt::Uint8Array::from_vec(vec![1, 2, 3, 4, 5])
+pub extern "C" fn test_return_arr() -> *mut wasm_interopt::Uint8Array {
+    unsafe { wasm_interopt::Uint8Array::from_vec(vec![1, 2, 3, 4, 5]) }
 }

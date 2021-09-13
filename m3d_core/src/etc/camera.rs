@@ -1,4 +1,4 @@
-use crate::rendering::rendermath::{Matrix, Point3D, RenderMatrices};
+use crate::rendermath::{Matrix, Point3D, RenderMatrices};
 
 pub struct Camera {
     pub data: CameraData,
@@ -10,11 +10,14 @@ pub struct CameraData {
     pub target: (f32, f32), // rotation, inclination
     pub near: f32,
     pub far: f32,
+    pub scale: usize,
     pub center_x: f32,
     pub center_y: f32,
 }
 pub struct CameraCache {
+    pub world: Option<Matrix>,
     pub view: Option<Matrix>,
+    pub inverse_view: Option<Matrix>,
     pub projection: Option<Matrix>,
     pub reverse: Option<Matrix>,
 }
@@ -23,25 +26,24 @@ impl Camera {
     pub fn new(
         position: Point3D,
         target: (f32, f32),
-        near: f32,
-        far: f32,
+        fov_horizontal: f32,
+        render_distance: usize,
         width: usize,
         height: usize,
     ) -> Self {
+        let near = (width as f32 / 2.0) / (fov_horizontal / 2.0).tan();
+        let scale = (width / 7) / 4;
         Self {
             data: CameraData {
                 position,
                 target,
                 near,
-                far,
+                far: (scale * render_distance) as f32 + near,
+                scale: (width / 7) / 4,
                 center_x: width as f32 / 2.0,
                 center_y: height as f32 / 2.0,
             },
-            cache: CameraCache {
-                view: None,
-                projection: None,
-                reverse: None,
-            },
+            cache: CameraCache::new(),
         }
     }
     pub fn translate(&mut self, dx: isize, dy: isize, dz: isize) {
@@ -58,10 +60,30 @@ impl Camera {
 
         self.cache.invalidate();
     }
+    pub fn scale(&self) -> usize {
+        self.data.scale
+    }
+    pub fn near(&self) -> f32 {
+        self.data.near
+    }
+    pub fn far(&self) -> f32 {
+        self.data.far
+    }
 }
 impl CameraCache {
+    pub fn new() -> Self {
+        Self {
+            view: None,
+            world: None,
+            inverse_view: None,
+            projection: None,
+            reverse: None,
+        }
+    }
     pub fn invalidate(&mut self) {
         self.view = None;
+        self.world = None;
+        self.inverse_view = None;
         self.projection = None;
         self.reverse = None;
     }
@@ -79,17 +101,36 @@ impl CameraCache {
     }
     pub fn view<'a>(view: &'a mut Option<Matrix>, camera_data: &CameraData) -> &'a Matrix {
         if view.is_none() {
-            *view = Some(RenderMatrices::compose_transformations(&vec![
-                &RenderMatrices::translation(
-                    -camera_data.position.get(0),
-                    -camera_data.position.get(1),
-                    -camera_data.position.get(2),
-                ),
-                &RenderMatrices::rotation_y(camera_data.target.0),
-                &RenderMatrices::rotation_x(camera_data.target.1),
-            ]));
+            *view = Some(
+                RenderMatrices::rotation_x(camera_data.target.1)
+                    .matrix_mul(&RenderMatrices::rotation_y(camera_data.target.0))
+                    .matrix_mul(&RenderMatrices::translation(
+                        -camera_data.center_x,
+                        -camera_data.center_y,
+                        0.0,
+                    )),
+            );
         }
         view.as_ref().unwrap()
+    }
+    pub fn world<'a>(world: &'a mut Option<Matrix>, camera_data: &CameraData) -> &'a Matrix {
+        if world.is_none() {
+            *world = Some(
+                RenderMatrices::scale(
+                    camera_data.scale as f32,
+                    camera_data.scale as f32,
+                    camera_data.scale as f32,
+                )
+                .matrix_mul(&RenderMatrices::rotation_x(camera_data.target.1))
+                .matrix_mul(&RenderMatrices::rotation_y(camera_data.target.0))
+                .matrix_mul(&RenderMatrices::translation(
+                    -camera_data.position.position.get(0),
+                    -camera_data.position.position.get(1),
+                    -camera_data.position.position.get(2),
+                )),
+            );
+        }
+        world.as_ref().unwrap()
     }
     pub fn reverse<'a>(reverse: &'a mut Option<Matrix>, camera_data: &CameraData) -> &'a Matrix {
         if reverse.is_none() {

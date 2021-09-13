@@ -43,6 +43,10 @@ impl Vector {
     pub fn get(&self, indx: usize) -> f32 {
         unsafe { *self.elements.get_unchecked(indx) }
     }
+    #[inline(always)]
+    pub fn get_mut(&mut self, indx: usize) -> &mut f32 {
+        unsafe { self.elements.get_unchecked_mut(indx) }
+    }
     pub fn norm2(&self) -> f32 {
         let mut acc: f32 = 0.0;
         for element in self.elements.iter() {
@@ -180,10 +184,7 @@ impl Matrix {
         let mut to_return = Vector::with_fill(self.height, 0.0);
         for yindx in 0..self.height {
             for xindx in 0..self.width {
-                to_return.set(
-                    yindx,
-                    to_return.get(yindx) + rhs.get(xindx) * self.get(xindx, yindx),
-                );
+                *to_return.get_mut(yindx) += rhs.get(xindx) * self.get(xindx, yindx);
             }
         }
         to_return

@@ -1,26 +1,19 @@
 use std::fs;
-extern crate image;
 
 pub fn main() {
     println!("cargo:rerun-if-changed=./img");
 
     let images_names = fs::read_to_string("./img/index.txt").expect("Image packaging failed");
-    let mut buffer: Vec<u8> = Vec::new();
+    let images_split = images_names.split("\n").collect::<Vec<&str>>();
+    let mut acc = String::new();
 
-    for img_name in images_names.split("\n") {
-        let img = image::open("./img/".to_owned() + img_name)
-            .unwrap()
-            .to_rgba8();
-
-        for indy in 0..img.height() {
-            for indx in 0..img.width() {
-                let rgba = img.get_pixel(indx, indy);
-                buffer.push(rgba[0]);
-                buffer.push(rgba[1]);
-                buffer.push(rgba[2]);
-                buffer.push(rgba[3]);
-            }
+    for (i, img_name) in images_split.iter().enumerate() {
+        let contents =
+            fs::read_to_string("./img/".to_string() + img_name).expect("Couldn't open image file");
+        acc += &contents;
+        if i + 1 < images_split.len() {
+            acc += "\n";
         }
     }
-    fs::write("./images.bin", buffer).unwrap();
+    fs::write("./images.txt", acc).unwrap();
 }

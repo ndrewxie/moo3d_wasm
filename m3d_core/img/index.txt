@@ -1,2 +1,2 @@
-grass.png
-dirt.png
+grass.txt
+dirt.txt

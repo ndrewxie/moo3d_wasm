@@ -1,6 +1,7 @@
 pub mod material;
 pub use material::Material;
 
+use crate::camera::Camera;
 use crate::rendering::{CubeFace, Renderer};
 
 const BLOCK_BUNDLE_SIZE: usize = 32;
@@ -28,12 +29,16 @@ pub struct BlockBundle {
 }
 
 pub struct World {
+    camera: Camera,
     bundles: Vec<BlockBundle>,
     world_bundle_size: usize,
     world_bundle_squared: usize,
     offset_x: usize,
     offset_y: usize,
     offset_z: usize,
+    location_x: usize, // relative to offset bundle
+    location_y: usize,
+    location_z: usize,
 }
 
 impl BlockData {
@@ -131,8 +136,6 @@ impl World {
         ))
     }
     fn full_faces_list(
-        &self,
-        data: &BlockData,
         bundle: &BlockBundle,
         x: usize,
         y: usize,
@@ -169,24 +172,35 @@ impl World {
         }
         to_return
     }
-    pub fn draw_block(&self, x: usize, y: usize, z: usize, renderer: &mut Renderer) {
-        if let Some(bundle) = self.get_bundle(
-            x / BLOCK_BUNDLE_SIZE,
-            y / BLOCK_BUNDLE_SIZE,
-            z / BLOCK_BUNDLE_SIZE,
-        ) {
-            let block = bundle.get(
-                x % BLOCK_BUNDLE_SIZE,
-                y % BLOCK_BUNDLE_SIZE,
-                z % BLOCK_BUNDLE_SIZE,
-            );
-            match block {
-                Block::Full(block_data) => {}
-                Block::Multiple(block_data_vec) => {}
-                _ => {}
+    pub fn draw_block(
+        camera: &mut Camera,
+        bundle: &BlockBundle,
+        dx: usize,
+        dy: usize,
+        dz: usize,
+        renderer: &mut Renderer,
+    ) {
+        let block = bundle.get(dx, dy, dz);
+        match block {
+            Block::Full(block_data) => {
+                let full_faces = Self::full_faces_list(bundle, dx, dy, dz);
+                for element in full_faces {
+                    if let Some(face) = element {
+                        /*
+                        renderer.draw_cubeface(
+                            &Point3D::from_euc_coords(),
+
+                        );
+                        */
+                    } else {
+                        break;
+                    }
+                }
             }
+            Block::Multiple(block_data_vec) => {}
         }
     }
+    pub fn draw_bundle(&self, u: usize, v: usize, w: usize, renderer: &mut Renderer) {}
 }
 
 impl Block {

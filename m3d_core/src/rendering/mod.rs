@@ -1,22 +1,18 @@
 use std::cmp;
 
-pub mod camera;
 pub mod gfx;
 mod pixeliterator;
-pub mod rendermath;
 
-use camera::{Camera, CameraCache};
+use crate::camera::{Camera, CameraCache};
+use crate::rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 use gfx::{Color, FarLight, Light, NearLight, Texture};
 use pixeliterator::PixelIterator;
-use rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 
 pub struct Renderer {
     pub width: usize,
     pub height: usize,
-    pub scale: usize, // side length of 1 block
     pixels: Vec<u8>,
     z_buffer: Vec<f32>,
-    pub camera: Camera,
 
     pub textures: Vec<Texture>,
     pub lights: Vec<Light>,
@@ -32,7 +28,7 @@ pub enum CubeFace {
 }
 
 impl Renderer {
-    pub fn new(width: usize, height: usize, fov_horizontal: f32, texture_array: &[u8]) -> Self {
+    pub fn new(camera: &Camera, width: usize, height: usize, texture_array: &[u8]) -> Self {
         let texture_slice_len = (4 * (gfx::TEXTURE_LEN + 1)) as usize;
 
         let mut textures: Vec<Texture> = Vec::new();
@@ -53,24 +49,14 @@ impl Renderer {
             }
         }
 
-        let near = (width as f32 / 2.0) / (fov_horizontal / 2.0).tan();
-        let far = near * 200.0;
-        let scale = width / 7;
+        let near = camera.near();
+        let scale = camera.scale();
 
         Self {
             pixels: vec![0; 4 * width * height],
             z_buffer: vec![100000.0; width * height],
             width,
             height,
-            scale,
-            camera: Camera::new(
-                Point3D::from_euc_coords(width as isize / 2, height as isize / 2, 0),
-                (0.0, 0.0),
-                near,
-                far,
-                width,
-                height,
-            ),
             textures,
             lights: vec![
                 Light::Near(NearLight::new(
@@ -108,12 +94,6 @@ impl Renderer {
     }
     pub fn get_mut_pixels(&mut self) -> &mut [u8] {
         &mut self.pixels
-    }
-    pub fn get_near(&self) -> f32 {
-        self.camera.data.near
-    }
-    pub fn get_far(&self) -> f32 {
-        self.camera.data.far
     }
     fn pixel_iterator(
         &self,
@@ -242,33 +222,30 @@ impl Renderer {
     ) -> f32 {
         z * (v_a * params.0 * u + v_b * params.1 * v + v_c * params.2 * w)
     }
-    fn vertex_lighting(&self, vertex: &Point3D, normal: &Vector) -> Color {
+    fn vertex_lighting(&self, vertex: &Point3D, normal: &Vector, scale: usize) -> Color {
         let mut to_return = Color::zero();
         for light in &self.lights {
-            to_return.add(light.intensity(vertex, normal, self.scale));
+            to_return.add(light.intensity(vertex, normal, scale));
         }
         to_return
     }
     pub fn draw_triface(
         &mut self,
+        camera: &mut Camera,
         v1: &Point3D,
         v2: &Point3D,
         v3: &Point3D,
         texture: (f32, f32, f32, f32, f32, f32, u16),
     ) {
         let normal = RenderMatrices::triface_normal(v1, v2, v3);
-        if normal.dot(
-            &RenderMatrices::triface_center(v1, v2, v3).minus(&self.camera.data.position.position),
-        ) > 0.0
-        {
+        if normal.dot(&RenderMatrices::triface_center(v1, v2, v3)) > 0.0 {
             return;
         }
 
-        let forward = CameraCache::view(&mut self.camera.cache.view, &self.camera.data);
-        let reverse =
-            CameraCache::reverse(&mut self.camera.cache.reverse, &self.camera.data).matrix_mul(
-                CameraCache::projection(&mut self.camera.cache.projection, &self.camera.data),
-            );
+        let forward = CameraCache::view(&mut camera.cache.view, &camera.data);
+        let reverse = CameraCache::reverse(&mut camera.cache.reverse, &camera.data).matrix_mul(
+            CameraCache::projection(&mut camera.cache.projection, &camera.data),
+        );
 
         let vertex1 = v1.transform(&forward);
         let vertex2 = v2.transform(&forward);
@@ -295,9 +272,9 @@ impl Renderer {
         }
 
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, texture_id) = texture;
-        let light_color_1 = self.vertex_lighting(v1, &normal);
-        let light_color_2 = self.vertex_lighting(v2, &normal);
-        let light_color_3 = self.vertex_lighting(v3, &normal);
+        let light_color_1 = self.vertex_lighting(v1, &normal, camera.scale());
+        let light_color_2 = self.vertex_lighting(v2, &normal, camera.scale());
+        let light_color_3 = self.vertex_lighting(v3, &normal, camera.scale());
 
         let bary_interp_params = Self::barycentric_interp_params(
             vertex1.z_coord_float(),
@@ -323,7 +300,7 @@ impl Renderer {
 
         let mut pixel_iterator =
             self.pixel_iterator(min_x as usize, min_y as usize, &barycentric_params);
-        let z_map_denominator = 1.0 / (self.get_far() - self.get_near());
+        let z_map_denominator = 1.0 / (camera.far() - camera.near());
 
         for _indy in min_y..=max_y {
             let [x_start, x_end] = pixel_iterator.solve_x_range(min_x, max_x);
@@ -370,7 +347,7 @@ impl Renderer {
                 self.write_pixel_internal(
                     pixel_iterator.pixel_offset,
                     pixel_iterator.offset,
-                    (interp_z - self.get_near()) * z_map_denominator,
+                    (interp_z - camera.near()) * z_map_denominator,
                     pixel_color,
                 );
                 pixel_iterator.next_column();
@@ -380,6 +357,7 @@ impl Renderer {
     }
     pub fn draw_quadface(
         &mut self,
+        camera: &mut Camera,
         v1: &Point3D,
         v2: &Point3D,
         v3: &Point3D,
@@ -387,12 +365,24 @@ impl Renderer {
         fill: (f32, f32, f32, f32, f32, f32, f32, f32, u16),
     ) {
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tc4x, tc4y, tex) = fill;
-        self.draw_triface(v1, v2, v3, (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex));
-        self.draw_triface(v3, v4, v1, (tc3x, tc3y, tc4x, tc4y, tc1x, tc1y, tex));
+        self.draw_triface(
+            camera,
+            v1,
+            v2,
+            v3,
+            (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex),
+        );
+        self.draw_triface(
+            camera,
+            v3,
+            v4,
+            v1,
+            (tc3x, tc3y, tc4x, tc4y, tc1x, tc1y, tex),
+        );
     }
-    // 1 is bottom, 2 is left side, 3 is far side, 4 is right side, 5 is near side, 6 is top
     pub fn draw_cubeface(
         &mut self,
+        camera: &mut Camera,
         center: &Point3D,
         side: CubeFace,
         halfsides: &[f32],
@@ -437,6 +427,7 @@ impl Renderer {
         p4 = p4.transform(transform);
 
         self.draw_quadface(
+            camera,
             &p1,
             &p2,
             &p3,
@@ -456,6 +447,7 @@ impl Renderer {
     }
     pub fn draw_cuboid(
         &mut self,
+        camera: &mut Camera,
         position: &Point3D,
         orientation: &(f32, f32, f32),
         dimensions: &[f32],
@@ -476,6 +468,7 @@ impl Renderer {
             RenderMatrices::rotation_3d(*pitch, *roll, *yaw, Some(&(x as f32, y as f32, z as f32)));
 
         self.draw_cubeface(
+            camera,
             position,
             CubeFace::PlusZ,
             &halfsides,
@@ -483,6 +476,7 @@ impl Renderer {
             texture_id,
         );
         self.draw_cubeface(
+            camera,
             position,
             CubeFace::MinusX,
             &halfsides,
@@ -490,6 +484,7 @@ impl Renderer {
             texture_id,
         );
         self.draw_cubeface(
+            camera,
             position,
             CubeFace::PlusY,
             &halfsides,
@@ -497,6 +492,7 @@ impl Renderer {
             texture_id,
         );
         self.draw_cubeface(
+            camera,
             position,
             CubeFace::PlusX,
             &halfsides,
@@ -504,6 +500,7 @@ impl Renderer {
             texture_id,
         );
         self.draw_cubeface(
+            camera,
             position,
             CubeFace::MinusY,
             &halfsides,
@@ -511,6 +508,7 @@ impl Renderer {
             texture_id,
         );
         self.draw_cubeface(
+            camera,
             position,
             CubeFace::MinusZ,
             &halfsides,

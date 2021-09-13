@@ -1,4 +1,4 @@
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct MaterialData {
     pub is_transparent: bool,
     pub is_solid: bool,

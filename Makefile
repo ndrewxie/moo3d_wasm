@@ -7,12 +7,12 @@ all:
 	rm -f ./client/m3d_wasm.wasm
 	rm -f ./client/m3d_wasm.wasm.gz
 	cp ./target/wasm32-unknown-unknown/release/m3d_wasm.wasm ./client/m3d_wasm.wasm
-	gzip -k ./client/m3d_wasm.wasm
+	gzip -9 -k ./client/m3d_wasm.wasm
 
-	rm -f ./client/images.bin
-	rm -f ./client/images.bin.gz
-	cp ./m3d_core/images.bin ./client/images.bin
-	gzip -k ./client/images.bin
+	rm -f ./client/images.txt
+	rm -f ./client/images.txt.gz
+	cp ./m3d_core/images.txt ./client/images.txt
+	gzip -9 -k ./client/images.txt
 
 	#npx http-server ./client/ --gzip -c-1
 	http-server ./client/ --gzip -c-1
@@ -28,7 +28,7 @@ profile:
 	rm -rf ./profiling
 	mkdir -p ./profiling
 	cp `find ./target/release/deps/ -maxdepth 1 -name "*m3d_test*" ! -name "*.*"` ./profiling/profile_target
-	cp ./m3d_core/images.bin ./profiling/
+	cp ./m3d_core/images.txt ./profiling/
 
 callgrind:
 	clear
@@ -37,7 +37,7 @@ callgrind:
 	rm -rf ./profiling
 	mkdir -p ./profiling
 	cp `find ./target/release/deps/ -maxdepth 1 -name "*m3d_test*" ! -name "*.*"` ./profiling/profile_target
-	cp ./m3d_core/images.bin ./profiling/
+	cp ./m3d_core/images.txt ./profiling/
 	cd ./profiling && valgrind --tool=callgrind --branch-sim=yes --cache-sim=yes --simulate-wb=yes ./profile_target 
 
 sanitize:

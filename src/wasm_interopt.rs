@@ -47,7 +47,7 @@ pub unsafe extern "C" fn get_array_length(input: *mut Uint8Array) -> usize {
 
 #[no_mangle]
 pub unsafe extern "C" fn free_uint8_arr(input: *mut Uint8Array) {
-    let _reconstructed_box = Box::from_raw(input);
+    drop(Box::from_raw(input));
 }
 
 #[no_mangle]

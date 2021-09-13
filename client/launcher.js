@@ -22,12 +22,17 @@ const memory = new WebAssembly.Memory({initial: mem_size, shared: false});
 var import_object = {
     env: {memory}
 };
-WebAssembly.instantiateStreaming(fetch('m3d_wasm.wasm'), import_object)
-.then(async results => {
-    if (test_wasm(results.instance)) {
+
+let wasm_request = WebAssembly.instantiateStreaming(fetch('m3d_wasm.wasm'), import_object);
+let image_request = fetch('images.txt');
+Promise.all([wasm_request, image_request]).then(async (promised_values) => {
+    let wasm_instance = promised_values[0];
+    let fetched_images = promised_values[1];
+
+    if (test_wasm(wasm_instance.instance)) {
         console.log('WASM PASSED');
-        instance = results.instance;
-        await launch_init();
+        instance = wasm_instance.instance;
+        await launch_init(fetched_images);
     }
     else {
         alert('WASM FAILED');
@@ -55,27 +60,74 @@ function test_wasm(input_instance) {
     return true;
 }
 
-async function launch_init() {
+async function launch_init(img_response) {
+    let loaded_images = await (async function() {
+        let tentative_images = [];
+
+        let loaded_text = (await img_response.text()).split('\n');
+        for (let j = 0; j < loaded_text.length; j++) {
+            let to_parse = uint8_array_from_base16(loaded_text[j]);
+            let colors = (function() {
+                let colors_acc = [];
+
+                let num_colors_a = to_parse.shift();
+                let num_colors_b = to_parse.shift();
+                let num_colors = num_colors_a * 256 + num_colors_b;
+                for (let k = 0; k < num_colors; k++) {
+                    let r = to_parse.shift();
+                    let g = to_parse.shift();
+                    let b = to_parse.shift();
+                    let a = to_parse.shift();
+                    colors_acc.push([r, g, b, a]);
+                }
+                return colors_acc;
+            })();
+            while (to_parse.length > 0) {
+                let num_repeats = (function() {
+                    let num_repeats_a = to_parse.shift();
+                    if (num_repeats_a >= 255) {
+                        let num_repeats_c = to_parse.shift();
+                        let num_repeats_d = to_parse.shift();
+                        return num_repeats_c * 256 + num_repeats_d;
+                    }
+                    else {
+                        return num_repeats_a;
+                    }
+                })();
+                let run_color = to_parse.shift();
+
+                for (let k = 0; k < num_repeats; k++) {
+                    tentative_images.push(...colors[run_color]);
+                }
+            }
+        }
+        console.log(tentative_images);
+        if (tentative_images.length % 4 == 0) {
+            console.log("IMAGE LOAD PASSED");
+        }
+        else {
+            alert("IMAGE LOAD FAILED");
+        }
+        return new Uint8Array(tentative_images);
+    })();
+    let boxed_images = uint8ToWasm(instance, loaded_images);
+
     let gameCanvas = document.getElementById('gameCanvas');
 
     width = Math.floor(window.innerWidth);
     height = Math.floor(Math.min(window.innerHeight, window.innerWidth / ASPECT_RATIO));
-
     gameCanvas.style.width = '' + width + 'px';
     gameCanvas.style.height = '' + height + 'px';
     
     width = Math.floor(width * 0.66);
     height = Math.floor(height * 0.66);
-
     gameCanvas.height = height;
     gameCanvas.width = width;
 
     ctx = gameCanvas.getContext('2d');
 
-    let img_response = await fetch('images.bin');
-    let loaded_images = new Uint8Array(await (await img_response.blob()).arrayBuffer());
-    
-    gs_manager = instance.exports.make_game_state(width, height, uint8ToWasm(instance, loaded_images));
+    gs_manager = instance.exports.make_game_state(width, height, boxed_images);
+    instance.exports.free_uint8_arr(boxed_images);
 
     let raw_data = instance.exports.get_pixel_data(gs_manager)
 
@@ -97,13 +149,7 @@ function renderLoop(curr_time) {
 
     requestAnimationFrame(renderLoop);
     instance.exports.render_game(gs_manager, curr_time);
-    /*
-    let raw_data = instance.exports.get_pixel_data(gs_manager)
 
-    ctx.putImageData(new ImageData(unwrapUint8ClampedArray(instance, raw_data), width), 0, 0);
-
-    instance.exports.free_uint8_arr(raw_data);
-    */
     ctx.putImageData(image_data, 0, 0);
 }
 
