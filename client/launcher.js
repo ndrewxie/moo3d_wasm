@@ -12,7 +12,7 @@ var ASPECT_RATIO = 2;
 // Control variables
 let translate_state = [0, 0, 0];
 let translate_look_state = [0, 0];
-let deltas = [0, 0, 0];
+let deltas = [0, 0, 0, 0, 0];
 
 let last_frame = 0;
 let fps = 0;
@@ -101,7 +101,6 @@ async function launch_init(img_response) {
                 }
             }
         }
-        console.log(tentative_images);
         if (tentative_images.length % 4 == 0) {
             console.log("IMAGE LOAD PASSED");
         }
@@ -143,6 +142,8 @@ function renderLoop(curr_time) {
     deltas[0] += translate_state[0];
     deltas[1] += translate_state[1];
     deltas[2] += translate_state[2];
+    deltas[3] += translate_look_state[0];
+    deltas[4] += translate_look_state[1];
     
     instance.exports.translate_camera(gs_manager, translate_state[0], translate_state[1], translate_state[2]);
     instance.exports.rotate_camera(gs_manager, translate_look_state[0], translate_look_state[1]);
@@ -209,6 +210,10 @@ let fps_meter = document.getElementById('fpsMeter');
 setInterval(function() {
     fps_meter.innerText = 
         'FPS: ' + (Math.round(fps * 100) / 100) + '\n' +
-        'Deltas: [' + deltas[0] + ', ' + deltas[1] + ', ' + deltas[2] + ']\n' +
+        'Deltas: ' + JSON.stringify(
+            deltas.map(function(elems) {
+                return Number(elems.toFixed(2));
+            })
+        ) + '\n' +
         'Width: ' + width + ", height: " + height;
 }, 2000);

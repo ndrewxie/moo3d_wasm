@@ -7,7 +7,7 @@ pub struct MaterialData {
     pub texture: Option<[u16; 6]>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Material {
     Empty,
     Dirt,

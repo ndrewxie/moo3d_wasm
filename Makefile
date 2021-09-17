@@ -19,7 +19,7 @@ all:
 
 test:
 	clear
-	RUST_BACKTRACE=1 cargo test -p m3d_core --bin m3d_test -- --nocapture
+	RUSTFLAGS='-C debug-assertions' RUST_BACKTRACE=1 cargo test -p m3d_core --bin m3d_test -- --nocapture
 
 profile:
 	clear

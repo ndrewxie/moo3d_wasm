@@ -17,7 +17,7 @@ pub struct Renderer {
     pub textures: Vec<Texture>,
     pub lights: Vec<Light>,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum CubeFace {
     PlusX,
     PlusY,
@@ -238,22 +238,16 @@ impl Renderer {
         texture: (f32, f32, f32, f32, f32, f32, u16),
     ) {
         let normal = RenderMatrices::triface_normal(v1, v2, v3);
-        if normal.dot(&RenderMatrices::triface_center(v1, v2, v3)) > 0.0 {
+        if normal.dot(&RenderMatrices::triface_center(v1, v2, v3)) >= 0.0 {
+            // TODO: THIS IS THE PROBLEM
             return;
         }
 
-        let forward = CameraCache::view(&mut camera.cache.view, &camera.data);
-        let reverse = CameraCache::reverse(&mut camera.cache.reverse, &camera.data).matrix_mul(
-            CameraCache::projection(&mut camera.cache.projection, &camera.data),
-        );
+        let reverse = CameraCache::to_screen_space(&mut camera.cache.to_screen_space, &camera.data);
 
-        let vertex1 = v1.transform(&forward);
-        let vertex2 = v2.transform(&forward);
-        let vertex3 = v3.transform(&forward);
-
-        let projected1 = vertex1.transform(&reverse);
-        let projected2 = vertex2.transform(&reverse);
-        let projected3 = vertex3.transform(&reverse);
+        let projected1 = v1.transform(&reverse);
+        let projected2 = v2.transform(&reverse);
+        let projected3 = v3.transform(&reverse);
 
         let p1x = projected1.x_coord();
         let p1y = projected1.y_coord();
@@ -277,9 +271,9 @@ impl Renderer {
         let light_color_3 = self.vertex_lighting(v3, &normal, camera.scale());
 
         let bary_interp_params = Self::barycentric_interp_params(
-            vertex1.z_coord_float(),
-            vertex2.z_coord_float(),
-            vertex3.z_coord_float(),
+            v1.z_coord_float(),
+            v2.z_coord_float(),
+            v3.z_coord_float(),
         );
 
         let min_x = cmp::max(0, cmp::min(cmp::min(p1x, p2x), p3x));
@@ -287,7 +281,7 @@ impl Renderer {
         let max_x = cmp::min(self.width as isize - 1, cmp::max(cmp::max(p1x, p2x), p3x));
         let max_y = cmp::min(self.height as isize - 1, cmp::max(cmp::max(p1y, p2y), p3y));
 
-        let barycentric_params = RenderMatrices::barycentric_params(
+        let barycentric_params_wrapped = RenderMatrices::barycentric_params(
             min_x as f32,
             min_y as f32,
             projected1.get(0),
@@ -297,9 +291,14 @@ impl Renderer {
             projected3.get(0),
             projected3.get(1),
         );
+        if barycentric_params_wrapped.is_none() {
+            return;
+        }
+        let barycentric_params = barycentric_params_wrapped.unwrap();
 
         let mut pixel_iterator =
             self.pixel_iterator(min_x as usize, min_y as usize, &barycentric_params);
+
         let z_map_denominator = 1.0 / (camera.far() - camera.near());
 
         for _indy in min_y..=max_y {

@@ -242,6 +242,10 @@ impl Point3D {
         self.position.get(n)
     }
     #[inline(always)]
+    pub fn get_mut(&mut self, n: usize) -> &mut f32 {
+        self.position.get_mut(n)
+    }
+    #[inline(always)]
     pub fn set(&mut self, n: usize, val: f32) {
         self.position.set(n, val)
     }
@@ -277,6 +281,18 @@ impl Point3D {
     #[inline(always)]
     pub fn w_coord(&self) -> f32 {
         self.get(3)
+    }
+}
+impl std::fmt::Display for Point3D {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Point3D[{}, {}, {}, w: {}]",
+            self.get(0),
+            self.get(1),
+            self.get(2),
+            self.get(3)
+        )
     }
 }
 
@@ -436,8 +452,12 @@ impl RenderMatrices {
         v21: f32,
         v30: f32,
         v31: f32,
-    ) -> (f32, f32, f32, f32, f32, f32, f32, f32, f32) {
-        let denom = 1.0 / Self::bary_det(v10, v20, v30, v11, v21, v31);
+    ) -> Option<(f32, f32, f32, f32, f32, f32, f32, f32, f32)> {
+        let denom_base = Self::bary_det(v10, v20, v30, v11, v21, v31);
+        if denom_base.abs() < 0.0001 {
+            return None;
+        }
+        let denom = 1.0 / denom_base;
 
         let u = Self::bary_det(p0, v20, v30, p1, v21, v31) * denom;
         let v = Self::bary_det(v10, p0, v30, v11, p1, v31) * denom;
@@ -451,7 +471,7 @@ impl RenderMatrices {
         let dvdy = denom * (v10 - v30);
         let dwdy = -dudy - dvdy;
 
-        (u, v, w, dudx, dvdx, dwdx, dudy, dvdy, dwdy)
+        Some((u, v, w, dudx, dvdx, dwdx, dudy, dvdy, dwdy))
     }
     // Using right hand rule, thumb is normal, index finger is 2nd point,
     // middle finger gives first point, everything is relative to third point
