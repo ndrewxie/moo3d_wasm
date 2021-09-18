@@ -9,7 +9,7 @@ pub use etc::camera;
 pub use etc::rendermath;
 
 use rendering::gfx::{Color, FarLight, Light, NearLight};
-use rendermath::{Point3D, RenderMatrices, Vector};
+use rendermath::{Point3D, Vector};
 use world::{Block, BlockData, Material, Shape, World};
 
 pub struct GameState {
@@ -29,8 +29,8 @@ impl GameState {
         );
         let mut world = World::new(game_camera, 10);
         for indx in 0..150 {
-            for indy in 0..150 {
-                *world.data.get_mut(indx, indy, 5).unwrap() = Block::Full(BlockData {
+            for indz in 0..150 {
+                *world.data.get_mut(indx, 1, indz).unwrap() = Block::Full(BlockData {
                     shape: Shape::Block,
                     material: if indx % 2 == 0 {
                         Material::Dirt

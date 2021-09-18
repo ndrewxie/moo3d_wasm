@@ -3,9 +3,9 @@ use std::cmp;
 pub mod gfx;
 mod pixeliterator;
 
-use crate::camera::{Camera, CameraCache};
+use crate::camera::{Camera, CameraCache, CameraData};
 use crate::rendermath::{Matrix, Point3D, RenderMatrices, Vector};
-use gfx::{Color, FarLight, Light, NearLight, Texture};
+use gfx::{Color, Texture};
 use pixeliterator::PixelIterator;
 
 pub struct Renderer {
@@ -48,9 +48,6 @@ impl Renderer {
             }
         }
 
-        let near = camera.near();
-        let scale = camera.scale();
-
         Self {
             pixels: vec![0; 4 * width * height],
             z_buffer: vec![100000.0; width * height],
@@ -92,12 +89,12 @@ impl Renderer {
         }
         return true;
     }
+    #[inline(always)]
+    fn fails_z_check(&mut self, pixel_offset: usize, z: f32) -> bool {
+        unsafe { (z >= *self.z_buffer.get_unchecked(pixel_offset)) || (z < 0.0) || (z > 1.0) }
+    }
     fn write_pixel_internal(&mut self, pixel_offset: usize, offset: usize, z: f32, color: Color) {
         unsafe {
-            if (z >= *self.z_buffer.get_unchecked(pixel_offset)) | (z < 0.0) | (z > 1.0) {
-                return;
-            }
-
             let pixel_slice = self.pixels.as_mut_slice();
             *pixel_slice.get_unchecked_mut(offset) = color.r;
             *pixel_slice.get_unchecked_mut(offset + 1) = color.g;
@@ -110,6 +107,11 @@ impl Renderer {
     #[inline(always)]
     fn write_pixel_unchecked(&mut self, x: isize, y: isize, z: f32, color: Color) {
         let pixel_offset = y as usize * self.width + x as usize;
+
+        if self.fails_z_check(pixel_offset, z) {
+            return;
+        }
+
         self.write_pixel_internal(pixel_offset, 4 * pixel_offset, z, color);
     }
     #[inline(always)]
@@ -198,7 +200,8 @@ impl Renderer {
     }
     pub fn draw_triface(
         &mut self,
-        camera: &mut Camera,
+        screen_space: &mut Option<Matrix>,
+        camera_data: &CameraData,
         v1: &Point3D,
         v2: &Point3D,
         v3: &Point3D,
@@ -212,7 +215,7 @@ impl Renderer {
             return;
         }
 
-        let reverse = CameraCache::to_screen_space(&mut camera.cache.to_screen_space, &camera.data);
+        let reverse = CameraCache::to_screen_space(screen_space, camera_data);
 
         let projected1 = v1.transform(&reverse);
         let projected2 = v2.transform(&reverse);
@@ -265,7 +268,7 @@ impl Renderer {
         let mut pixel_iterator =
             self.pixel_iterator(min_x as usize, min_y as usize, &barycentric_params);
 
-        let z_map_denominator = 1.0 / (camera.far() - camera.near());
+        let z_map_denominator = 1.0 / (camera_data.far - camera_data.near);
 
         for _indy in min_y..=max_y {
             let [x_start, x_end] = pixel_iterator.solve_x_range(min_x, max_x);
@@ -277,44 +280,48 @@ impl Renderer {
                 let w = pixel_iterator.w;
 
                 let interp_z = Self::interp_barycentric_z(&bary_interp_params, u, v, w);
-                let tcx = Self::interp_barycentric(
-                    &bary_interp_params,
-                    u,
-                    v,
-                    w,
-                    interp_z,
-                    tc1x,
-                    tc2x,
-                    tc3x,
-                );
-                let tcy = Self::interp_barycentric(
-                    &bary_interp_params,
-                    u,
-                    v,
-                    w,
-                    interp_z,
-                    tc1y,
-                    tc2y,
-                    tc3y,
-                );
-                let mut pixel_color = self.textures[texture_id as usize].sample(tcx, tcy);
-                pixel_color.compose(Color::interp_barycentric(
-                    &bary_interp_params,
-                    u,
-                    v,
-                    w,
-                    interp_z,
-                    light_color_1,
-                    light_color_2,
-                    light_color_3,
-                ));
+                let actual_z = (interp_z - camera_data.near) * z_map_denominator;
 
-                self.write_pixel_internal(
-                    pixel_iterator.pixel_offset,
-                    pixel_iterator.offset,
-                    (interp_z - camera.near()) * z_map_denominator,
-                    pixel_color,
-                );
+                if !self.fails_z_check(pixel_iterator.pixel_offset, actual_z) {
+                    let tcx = Self::interp_barycentric(
+                        &bary_interp_params,
+                        u,
+                        v,
+                        w,
+                        interp_z,
+                        tc1x,
+                        tc2x,
+                        tc3x,
+                    );
+                    let tcy = Self::interp_barycentric(
+                        &bary_interp_params,
+                        u,
+                        v,
+                        w,
+                        interp_z,
+                        tc1y,
+                        tc2y,
+                        tc3y,
+                    );
+                    let mut pixel_color = self.textures[texture_id as usize].sample(tcx, tcy);
+                    pixel_color.compose(Color::interp_barycentric(
+                        &bary_interp_params,
+                        u,
+                        v,
+                        w,
+                        interp_z,
+                        light_color_1,
+                        light_color_2,
+                        light_color_3,
+                    ));
+
+                    self.write_pixel_internal(
+                        pixel_iterator.pixel_offset,
+                        pixel_iterator.offset,
+                        actual_z,
+                        pixel_color,
+                    );
+                }
                 pixel_iterator.next_column();
             }
             pixel_iterator.next_row();
@@ -322,7 +329,8 @@ impl Renderer {
     }
     pub fn draw_quadface(
         &mut self,
-        camera: &mut Camera,
+        screen_space: &mut Option<Matrix>,
+        camera_data: &CameraData,
         v1: &Point3D,
         v2: &Point3D,
         v3: &Point3D,
@@ -335,7 +343,8 @@ impl Renderer {
     ) {
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tc4x, tc4y, tex) = fill;
         self.draw_triface(
-            camera,
+            screen_space,
+            camera_data,
             v1,
             v2,
             v3,
@@ -345,7 +354,8 @@ impl Renderer {
             (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex),
         );
         self.draw_triface(
-            camera,
+            screen_space,
+            camera_data,
             v3,
             v4,
             v1,
@@ -357,7 +367,8 @@ impl Renderer {
     }
     pub fn draw_cubeface<LightingCalculator: Fn(&Point3D, &Vector) -> Color>(
         &mut self,
-        camera: &mut Camera,
+        screen_space: &mut Option<Matrix>,
+        camera_data: &CameraData,
         center: &Point3D,
         side: CubeFace,
         halfsides: &[f32],
@@ -409,7 +420,8 @@ impl Renderer {
         p4 = p4.transform(post_transform);
 
         self.draw_quadface(
-            camera,
+            screen_space,
+            camera_data,
             &p1,
             &p2,
             &p3,
@@ -429,84 +441,6 @@ impl Renderer {
                 0.0,
                 texture,
             ),
-        );
-    }
-    pub fn draw_cuboid<LightingCalculator: Fn(&Point3D, &Vector) -> Color>(
-        &mut self,
-        camera: &mut Camera,
-        position: &Point3D,
-        orientation: &(f32, f32, f32),
-        dimensions: &[f32],
-        texture_id: u16,
-        calculate_lighting: &LightingCalculator,
-    ) {
-        let x = position.x_coord();
-        let y = position.y_coord();
-        let z = position.z_coord();
-
-        let (pitch, roll, yaw) = orientation;
-        let halfsides = [
-            dimensions[0] / 2.0,
-            dimensions[1] / 2.0,
-            dimensions[2] / 2.0,
-        ];
-
-        let transform =
-            RenderMatrices::rotation_3d(*pitch, *roll, *yaw, Some(&(x as f32, y as f32, z as f32)));
-
-        self.draw_cubeface(
-            camera,
-            position,
-            CubeFace::PlusZ,
-            &halfsides,
-            &transform,
-            calculate_lighting,
-            texture_id,
-        );
-        self.draw_cubeface(
-            camera,
-            position,
-            CubeFace::MinusX,
-            &halfsides,
-            &transform,
-            calculate_lighting,
-            texture_id,
-        );
-        self.draw_cubeface(
-            camera,
-            position,
-            CubeFace::PlusY,
-            &halfsides,
-            &transform,
-            calculate_lighting,
-            texture_id,
-        );
-        self.draw_cubeface(
-            camera,
-            position,
-            CubeFace::PlusX,
-            &halfsides,
-            &transform,
-            calculate_lighting,
-            texture_id,
-        );
-        self.draw_cubeface(
-            camera,
-            position,
-            CubeFace::MinusY,
-            &halfsides,
-            &transform,
-            calculate_lighting,
-            texture_id,
-        );
-        self.draw_cubeface(
-            camera,
-            position,
-            CubeFace::MinusZ,
-            &halfsides,
-            &transform,
-            calculate_lighting,
-            texture_id,
         );
     }
 }

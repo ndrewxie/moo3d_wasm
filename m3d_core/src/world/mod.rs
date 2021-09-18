@@ -25,6 +25,7 @@ pub struct BlockData {
 pub enum Block {
     Full(BlockData),
     Multiple(Vec<BlockData>),
+    Empty,
 }
 #[derive(Debug)]
 pub struct BlockBundle {
@@ -119,51 +120,53 @@ impl World {
         renderer: &mut Renderer,
     ) {
         let block = bundle.get(dx, dy, dz);
-        if let Block::Full(block_data) = block {
-            let material_data = block_data.material.data();
-            if material_data.is_transparent || material_data.texture.is_none() {
-                return;
-            }
-
-            let full_faces = Self::full_faces_list(bundle, dx, dy, dz);
-            if full_faces[0].is_none() {
-                return;
-            }
-
-            let halfsides = block_data.shape.halfsides();
-            let center = Point3D::from_euc_coords_float(
-                (dx * UNITS_PER_BLOCK) as f32 + halfsides[0] + base_x,
-                (dy * UNITS_PER_BLOCK) as f32 + halfsides[1] + base_y,
-                (dz * UNITS_PER_BLOCK) as f32 + halfsides[2] + base_z,
-            );
-            let transform = RenderMatrices::identity().matrix_mul(&CameraCache::reverse_frustum(
-                &mut camera.cache.reverse_frustum,
-                &camera.data,
-            ));
-
-            let calculate_lighting = |point: &Point3D, normal: &Vector| {
-                let mut to_return = Color::zero();
-                for light in lights {
-                    to_return.add(light.intensity(point, normal, 1));
+        match block {
+            Block::Full(block_data) => {
+                let material_data = block_data.material.data();
+                if material_data.is_transparent || material_data.texture.is_none() {
+                    return;
                 }
-                to_return
-            };
 
-            for element in full_faces {
-                if let Some(face) = element {
-                    renderer.draw_cubeface(
-                        camera,
-                        &center,
-                        face,
-                        &halfsides,
-                        &transform,
-                        &calculate_lighting,
-                        material_data.texture.unwrap()[face as usize],
-                    );
-                } else {
-                    break;
+                let full_faces = Self::full_faces_list(bundle, dx, dy, dz);
+                if full_faces[0].is_none() {
+                    return;
+                }
+
+                let halfsides = block_data.shape.halfsides();
+                let center = Point3D::from_euc_coords_float(
+                    (dx * UNITS_PER_BLOCK) as f32 + halfsides[0] + base_x,
+                    (dy * UNITS_PER_BLOCK) as f32 + halfsides[1] + base_y,
+                    (dz * UNITS_PER_BLOCK) as f32 + halfsides[2] + base_z,
+                );
+                let transform =
+                    &CameraCache::reverse_frustum(&mut camera.cache.reverse_frustum, &camera.data);
+
+                let calculate_lighting = |point: &Point3D, normal: &Vector| {
+                    let mut to_return = Color::zero();
+                    for light in lights {
+                        to_return.add(light.intensity(point, normal, 1));
+                    }
+                    to_return
+                };
+
+                for element in full_faces {
+                    if let Some(face) = element {
+                        renderer.draw_cubeface(
+                            &mut camera.cache.to_screen_space,
+                            &camera.data,
+                            &center,
+                            face,
+                            &halfsides,
+                            &transform,
+                            &calculate_lighting,
+                            material_data.texture.unwrap()[face as usize],
+                        );
+                    } else {
+                        break;
+                    }
                 }
             }
+            _ => {}
         }
     }
     pub fn draw_bundle(
@@ -351,20 +354,19 @@ impl Block {
     pub fn is_full(&self) -> bool {
         match self {
             Self::Full(_) => true,
+            Self::Empty => true,
             _ => false,
         }
     }
     pub fn is_occluder(&self) -> bool {
         match self {
             Self::Full(block_data) => !block_data.material.data().is_transparent,
+            Self::Empty => false,
             _ => false,
         }
     }
     pub fn new() -> Self {
-        Self::Full(BlockData {
-            shape: Shape::Block,
-            material: Material::Empty,
-        })
+        Self::Empty
     }
 }
 
@@ -395,9 +397,17 @@ impl BlockBundle {
         Self { blocks }
     }
     pub fn get(&self, x: usize, y: usize, z: usize) -> &Block {
-        &self.blocks[BLOCK_BUNDLE_SIZE * BLOCK_BUNDLE_SIZE * z + BLOCK_BUNDLE_SIZE * y + x]
+        unsafe {
+            self.blocks.get_unchecked(
+                BLOCK_BUNDLE_SIZE * BLOCK_BUNDLE_SIZE * z + BLOCK_BUNDLE_SIZE * y + x,
+            )
+        }
     }
     pub fn get_mut(&mut self, x: usize, y: usize, z: usize) -> &mut Block {
-        &mut self.blocks[BLOCK_BUNDLE_SIZE * BLOCK_BUNDLE_SIZE * z + BLOCK_BUNDLE_SIZE * y + x]
+        unsafe {
+            self.blocks.get_unchecked_mut(
+                BLOCK_BUNDLE_SIZE * BLOCK_BUNDLE_SIZE * z + BLOCK_BUNDLE_SIZE * y + x,
+            )
+        }
     }
 }

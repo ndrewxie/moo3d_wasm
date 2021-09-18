@@ -158,8 +158,8 @@ impl CameraCache {
     ) -> &'a Matrix {
         if reverse_frustum.is_none() {
             *reverse_frustum = Some(
-                RenderMatrices::rotation_x(-camera_data.target.1)
-                    .matrix_mul(&RenderMatrices::rotation_y(-camera_data.target.0))
+                RenderMatrices::rotation_x(camera_data.target.1)
+                    .matrix_mul(&RenderMatrices::rotation_y(camera_data.target.0))
                     .matrix_mul(&RenderMatrices::translation(
                         -camera_data.position.position.get(0),
                         -camera_data.position.position.get(1),
