@@ -89,11 +89,10 @@ pub fn test_manager(n: usize) {
             }
         }
     }
-    println!("{}", texture_array.len());
 
     let mut gs_manager = GameState::new(1265, 632, &texture_array);
+    gs_manager.translate_camera(265, 150, -75);
     //gs_manager.rotate_camera(-0.2, 0.6);
-    //gs_manager.renderer.camera.translate(0, 0, 2300);
     //let mut gs_manager = GameState::new(1266, 633);
     for j in 0..n {
         gs_manager.render(j);
