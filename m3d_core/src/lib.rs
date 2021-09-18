@@ -8,7 +8,8 @@ pub mod world;
 pub use etc::camera;
 pub use etc::rendermath;
 
-use rendermath::{Point3D, RenderMatrices};
+use rendering::gfx::{Color, FarLight, Light, NearLight};
+use rendermath::{Point3D, RenderMatrices, Vector};
 use world::{Block, BlockData, Material, Shape, World};
 
 pub struct GameState {
@@ -26,15 +27,32 @@ impl GameState {
             width,
             height,
         );
-        let mut world = World::new(game_camera, 5);
-        for indx in 0..10 {
-            for indy in 0..10 {
+        let mut world = World::new(game_camera, 10);
+        for indx in 0..150 {
+            for indy in 0..150 {
                 *world.data.get_mut(indx, indy, 5).unwrap() = Block::Full(BlockData {
                     shape: Shape::Block,
                     material: Material::Dirt,
                 });
             }
         }
+        world.data.lights = vec![
+            Light::Near(NearLight::new(
+                Color::new(255, 0, 0, 255),
+                3500,
+                Point3D::from_euc_coords_float(5.0, 5.0, -10.0),
+            )),
+            Light::Near(NearLight::new(
+                Color::new(0, 255, 0, 255),
+                3000,
+                Point3D::from_euc_coords_float(50.0, 50.0, -10.0),
+            )),
+            Light::Far(FarLight::new(
+                Color::new(0, 0, 255, 255),
+                175,
+                Vector::with_data(vec![0.0, 1.0, 0.0]),
+            )),
+        ];
         Self {
             renderer: rendering::Renderer::new(&world.camera, width, height, texture_array),
             world,
@@ -47,6 +65,7 @@ impl GameState {
     pub fn get_mut_pixels(&mut self) -> &mut [u8] {
         self.renderer.get_mut_pixels()
     }
+    /*
     pub fn render_cubeplane(&mut self, _curr_time: usize) {
         let center_x = self.renderer.width / 2;
         let center_y = self.renderer.height / 2;
@@ -134,6 +153,7 @@ impl GameState {
             0,
         );
     }
+    */
     pub fn render_world(&mut self, _curr_time: usize) {
         self.renderer.clear();
         World::draw_all(&self.world.data, &mut self.world.camera, &mut self.renderer);

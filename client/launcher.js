@@ -156,22 +156,22 @@ function renderLoop(curr_time) {
 
 document.addEventListener('keydown', function(e) {
     if (e.key == 'w') {
-        translate_state = [0, 50, 0];   
+        translate_state = [0, 5, 0];   
     }
     else if (e.key == 'a') {
-        translate_state = [-50, 0, 0];   
+        translate_state = [-5, 0, 0];   
     }
     else if (e.key == 'd') {
-        translate_state = [50, 0, 0];   
+        translate_state = [5, 0, 0];   
     }
     else if (e.key == 's') {
-        translate_state = [0, -50, 0];   
+        translate_state = [0, -5, 0];   
     }
     else if (e.key == 'q') {
-        translate_state = [0, 0, 50];   
+        translate_state = [0, 0, 5];   
     }
     else if (e.key == 'e') {
-        translate_state = [0, 0, -50];   
+        translate_state = [0, 0, -5];   
     }
     else if (e.key == 'ArrowUp') {
         translate_look_state = [0, 0.1];

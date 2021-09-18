@@ -15,7 +15,6 @@ pub struct Renderer {
     z_buffer: Vec<f32>,
 
     pub textures: Vec<Texture>,
-    pub lights: Vec<Light>,
 }
 #[derive(Clone, Copy, Debug)]
 pub enum CubeFace {
@@ -58,31 +57,6 @@ impl Renderer {
             width,
             height,
             textures,
-            lights: vec![
-                Light::Near(NearLight::new(
-                    Color::new(255, 0, 0, 255),
-                    3500,
-                    Point3D::from_euc_coords(
-                        (width as isize / 2) - 3 * (scale as isize),
-                        (height as isize / 2) - 1 * (scale as isize),
-                        2 * near as isize + 1 * scale as isize,
-                    ),
-                )),
-                Light::Near(NearLight::new(
-                    Color::new(0, 255, 0, 255),
-                    3000,
-                    Point3D::from_euc_coords(
-                        (width as isize / 2) + 3 * (scale as isize),
-                        (height as isize / 2) - 1 * (scale as isize),
-                        2 * near as isize + 1 * scale as isize,
-                    ),
-                )),
-                Light::Far(FarLight::new(
-                    Color::new(0, 0, 255, 255),
-                    175,
-                    Vector::with_data(vec![0.0, 1.0, 0.0]),
-                )),
-            ],
         }
     }
     pub fn clear(&mut self) {
@@ -222,24 +196,19 @@ impl Renderer {
     ) -> f32 {
         z * (v_a * params.0 * u + v_b * params.1 * v + v_c * params.2 * w)
     }
-    fn vertex_lighting(&self, vertex: &Point3D, normal: &Vector, scale: usize) -> Color {
-        let mut to_return = Color::zero();
-        for light in &self.lights {
-            to_return.add(light.intensity(vertex, normal, scale));
-        }
-        to_return
-    }
     pub fn draw_triface(
         &mut self,
         camera: &mut Camera,
         v1: &Point3D,
         v2: &Point3D,
         v3: &Point3D,
+        light_color_1: Color,
+        light_color_2: Color,
+        light_color_3: Color,
         texture: (f32, f32, f32, f32, f32, f32, u16),
     ) {
         let normal = RenderMatrices::triface_normal(v1, v2, v3);
         if normal.dot(&RenderMatrices::triface_center(v1, v2, v3)) >= 0.0 {
-            // TODO: THIS IS THE PROBLEM
             return;
         }
 
@@ -266,9 +235,6 @@ impl Renderer {
         }
 
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, texture_id) = texture;
-        let light_color_1 = self.vertex_lighting(v1, &normal, camera.scale());
-        let light_color_2 = self.vertex_lighting(v2, &normal, camera.scale());
-        let light_color_3 = self.vertex_lighting(v3, &normal, camera.scale());
 
         let bary_interp_params = Self::barycentric_interp_params(
             v1.z_coord_float(),
@@ -361,6 +327,10 @@ impl Renderer {
         v2: &Point3D,
         v3: &Point3D,
         v4: &Point3D,
+        light_color_1: Color,
+        light_color_2: Color,
+        light_color_3: Color,
+        light_color_4: Color,
         fill: (f32, f32, f32, f32, f32, f32, f32, f32, u16),
     ) {
         let (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tc4x, tc4y, tex) = fill;
@@ -369,6 +339,9 @@ impl Renderer {
             v1,
             v2,
             v3,
+            light_color_1,
+            light_color_2,
+            light_color_3,
             (tc1x, tc1y, tc2x, tc2y, tc3x, tc3y, tex),
         );
         self.draw_triface(
@@ -376,16 +349,20 @@ impl Renderer {
             v3,
             v4,
             v1,
+            light_color_3,
+            light_color_4,
+            light_color_1,
             (tc3x, tc3y, tc4x, tc4y, tc1x, tc1y, tex),
         );
     }
-    pub fn draw_cubeface(
+    pub fn draw_cubeface<LightingCalculator: Fn(&Point3D, &Vector) -> Color>(
         &mut self,
         camera: &mut Camera,
         center: &Point3D,
         side: CubeFace,
         halfsides: &[f32],
-        transform: &Matrix,
+        post_transform: &Matrix,
+        calculate_lighting: &LightingCalculator,
         texture: u16,
     ) {
         let x = center.get(0);
@@ -420,10 +397,16 @@ impl Renderer {
         p4.set(axis_1, p4.get(axis_1) - halfsides[axis_1]);
         p4.set(axis_2, p4.get(axis_2) + halfsides[axis_2]);
 
-        p1 = p1.transform(transform);
-        p2 = p2.transform(transform);
-        p3 = p3.transform(transform);
-        p4 = p4.transform(transform);
+        let normal = RenderMatrices::triface_normal(&p1, &p2, &p3);
+        let color_1 = calculate_lighting(&p1, &normal);
+        let color_2 = calculate_lighting(&p2, &normal);
+        let color_3 = calculate_lighting(&p3, &normal);
+        let color_4 = calculate_lighting(&p4, &normal);
+
+        p1 = p1.transform(post_transform);
+        p2 = p2.transform(post_transform);
+        p3 = p3.transform(post_transform);
+        p4 = p4.transform(post_transform);
 
         self.draw_quadface(
             camera,
@@ -431,6 +414,10 @@ impl Renderer {
             &p2,
             &p3,
             &p4,
+            color_1,
+            color_2,
+            color_3,
+            color_4,
             (
                 0.0,
                 gfx::MTEXCOORD,
@@ -444,13 +431,14 @@ impl Renderer {
             ),
         );
     }
-    pub fn draw_cuboid(
+    pub fn draw_cuboid<LightingCalculator: Fn(&Point3D, &Vector) -> Color>(
         &mut self,
         camera: &mut Camera,
         position: &Point3D,
         orientation: &(f32, f32, f32),
         dimensions: &[f32],
         texture_id: u16,
+        calculate_lighting: &LightingCalculator,
     ) {
         let x = position.x_coord();
         let y = position.y_coord();
@@ -472,6 +460,7 @@ impl Renderer {
             CubeFace::PlusZ,
             &halfsides,
             &transform,
+            calculate_lighting,
             texture_id,
         );
         self.draw_cubeface(
@@ -480,6 +469,7 @@ impl Renderer {
             CubeFace::MinusX,
             &halfsides,
             &transform,
+            calculate_lighting,
             texture_id,
         );
         self.draw_cubeface(
@@ -488,6 +478,7 @@ impl Renderer {
             CubeFace::PlusY,
             &halfsides,
             &transform,
+            calculate_lighting,
             texture_id,
         );
         self.draw_cubeface(
@@ -496,6 +487,7 @@ impl Renderer {
             CubeFace::PlusX,
             &halfsides,
             &transform,
+            calculate_lighting,
             texture_id,
         );
         self.draw_cubeface(
@@ -504,6 +496,7 @@ impl Renderer {
             CubeFace::MinusY,
             &halfsides,
             &transform,
+            calculate_lighting,
             texture_id,
         );
         self.draw_cubeface(
@@ -512,6 +505,7 @@ impl Renderer {
             CubeFace::MinusZ,
             &halfsides,
             &transform,
+            calculate_lighting,
             texture_id,
         );
     }

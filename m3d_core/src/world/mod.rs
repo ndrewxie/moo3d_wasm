@@ -3,6 +3,7 @@ pub mod material;
 pub use material::Material;
 
 use crate::camera::{Camera, CameraCache, UNITS_PER_BLOCK};
+use crate::rendering::gfx::{Color, Light};
 use crate::rendering::{CubeFace, Renderer};
 use crate::rendermath::{Point3D, RenderMatrices, Vector};
 
@@ -36,6 +37,7 @@ pub struct World {
 }
 pub struct WorldData {
     pub bundles: Vec<BlockBundle>,
+    pub lights: Vec<Light>,
     pub world_bundle_size: usize,
     pub world_bundle_squared: usize,
     pub offset_x: usize,
@@ -58,6 +60,7 @@ impl World {
             camera,
             data: WorldData {
                 bundles,
+                lights: Vec::new(),
                 world_bundle_size,
                 world_bundle_squared: world_bundle_size * world_bundle_size,
                 offset_x,
@@ -105,6 +108,7 @@ impl World {
     }
     pub fn draw_block(
         camera: &mut Camera,
+        lights: &[Light],
         bundle: &BlockBundle,
         dx: usize,
         dy: usize,
@@ -137,9 +141,25 @@ impl World {
                 &camera.data,
             ));
 
+            let calculate_lighting = |point: &Point3D, normal: &Vector| {
+                let mut to_return = Color::zero();
+                for light in lights {
+                    to_return.add(light.intensity(point, normal, 1));
+                }
+                to_return
+            };
+
             for element in full_faces {
                 if let Some(face) = element {
-                    renderer.draw_cubeface(camera, &center, face, &halfsides, &transform, 0);
+                    renderer.draw_cubeface(
+                        camera,
+                        &center,
+                        face,
+                        &halfsides,
+                        &transform,
+                        &calculate_lighting,
+                        0,
+                    );
                 } else {
                     break;
                 }
@@ -217,7 +237,18 @@ impl World {
                 for indx in 0..BLOCK_BUNDLE_SIZE {
                     for indy in 0..BLOCK_BUNDLE_SIZE {
                         for indz in 0..BLOCK_BUNDLE_SIZE {
-                            Self::draw_block(camera, &bundle, indx, indy, indz, x, y, z, renderer);
+                            Self::draw_block(
+                                camera,
+                                &world_data.lights,
+                                &bundle,
+                                indx,
+                                indy,
+                                indz,
+                                x,
+                                y,
+                                z,
+                                renderer,
+                            );
                         }
                     }
                 }
