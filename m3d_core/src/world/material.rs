@@ -29,7 +29,7 @@ impl Material {
             Self::Grass => MaterialData {
                 is_transparent: false,
                 is_solid: true,
-                texture: Some([1, 1, 1, 1, 0, 1]),
+                texture: Some([0, 0, 0, 0, 0, 0]),
             },
         }
     }

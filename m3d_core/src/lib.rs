@@ -32,7 +32,11 @@ impl GameState {
             for indy in 0..150 {
                 *world.data.get_mut(indx, indy, 5).unwrap() = Block::Full(BlockData {
                     shape: Shape::Block,
-                    material: Material::Dirt,
+                    material: if indx % 2 == 0 {
+                        Material::Dirt
+                    } else {
+                        Material::Grass
+                    },
                 });
             }
         }
@@ -48,8 +52,8 @@ impl GameState {
                 Point3D::from_euc_coords_float(50.0, 50.0, -10.0),
             )),
             Light::Far(FarLight::new(
-                Color::new(0, 0, 255, 255),
-                175,
+                Color::new(255, 255, 255, 255),
+                120,
                 Vector::with_data(vec![0.0, 1.0, 0.0]),
             )),
         ];
@@ -65,104 +69,11 @@ impl GameState {
     pub fn get_mut_pixels(&mut self) -> &mut [u8] {
         self.renderer.get_mut_pixels()
     }
-    /*
-    pub fn render_cubeplane(&mut self, _curr_time: usize) {
-        let center_x = self.renderer.width / 2;
-        let center_y = self.renderer.height / 2;
-        let near = self.world.camera.near() as isize;
-        let scale = self.world.camera.scale() as isize;
-        self.renderer.clear();
-
-        for i in -15..15 {
-            for j in -20..15 {
-                self.renderer.draw_cuboid(
-                    &mut self.world.camera,
-                    &Point3D::from_euc_coords(
-                        center_x as isize + scale * i,
-                        center_y as isize + 2 * scale,
-                        5 * near + scale * j,
-                    ),
-                    &(0.0, 0.0, 0.0),
-                    &[scale as f32, scale as f32, scale as f32],
-                    if i % 2 == 0 { 1 } else { 0 },
-                );
-            }
-        }
-    }
-    pub fn render_faceplane(&mut self, _curr_time: usize) {
-        let center_x = self.renderer.width / 2;
-        let center_y = self.renderer.height / 2;
-        let near = self.world.camera.near() as isize;
-        let scale = self.world.camera.scale() as isize;
-        self.renderer.clear();
-
-        for i in -30..30 {
-            for j in -30..30 {
-                self.renderer.draw_cubeface(
-                    &mut self.world.camera,
-                    &Point3D::from_euc_coords(
-                        center_x as isize + scale * i,
-                        center_y as isize + 2 * scale,
-                        5 * near + scale * j,
-                    ),
-                    rendering::CubeFace::MinusY,
-                    &[scale as f32 * 0.5, scale as f32 * 0.5, scale as f32 * 0.5],
-                    &RenderMatrices::identity(),
-                    if i % 2 == 0 { 1 } else { 0 },
-                );
-            }
-        }
-    }
-    pub fn render_facewall(&mut self, _curr_time: usize) {
-        let center_x = self.renderer.width / 2;
-        let center_y = self.renderer.height / 2;
-        let near = self.world.camera.near() as isize;
-        let scale = self.world.camera.scale() as isize;
-        self.renderer.clear();
-
-        for i in -30..30 {
-            for j in -30..30 {
-                self.renderer.draw_cubeface(
-                    &mut self.world.camera,
-                    &Point3D::from_euc_coords(
-                        center_x as isize + scale * i,
-                        center_y as isize + j * scale,
-                        5 * near,
-                    ),
-                    rendering::CubeFace::MinusZ,
-                    &[scale as f32 * 0.5, scale as f32 * 0.5, scale as f32 * 0.5],
-                    &RenderMatrices::identity(),
-                    if i % 2 == 0 { 1 } else { 0 },
-                );
-            }
-        }
-    }
-    pub fn render_spinningcube(&mut self, curr_time: usize) {
-        let center_x = self.renderer.width / 2;
-        let center_y = self.renderer.height / 2;
-        let near = self.world.camera.near() as isize;
-        self.renderer.clear();
-
-        let angle = (curr_time / 50) as f32 * std::f32::consts::PI / 180.0;
-
-        self.renderer.draw_cuboid(
-            &mut self.world.camera,
-            &Point3D::from_euc_coords(center_x as isize, center_y as isize, 5 * near),
-            &(angle, 0.0, angle),
-            &[near as f32, near as f32, near as f32],
-            0,
-        );
-    }
-    */
     pub fn render_world(&mut self, _curr_time: usize) {
         self.renderer.clear();
         World::draw_all(&self.world.data, &mut self.world.camera, &mut self.renderer);
     }
     pub fn render(&mut self, curr_time: usize) {
-        //self.render_spinningcube(curr_time);
-        //self.render_cubeplane(curr_time);
-        //self.render_faceplane(curr_time);
-        //self.render_facewall(curr_time);
         self.render_world(curr_time);
     }
     pub fn translate_camera(&mut self, trans_x: isize, trans_y: isize, trans_z: isize) {

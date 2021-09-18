@@ -18,12 +18,12 @@ pub struct Renderer {
 }
 #[derive(Clone, Copy, Debug)]
 pub enum CubeFace {
-    PlusX,
-    PlusY,
-    PlusZ,
-    MinusX,
-    MinusY,
-    MinusZ,
+    PlusX = 0,
+    PlusY = 1,
+    PlusZ = 2,
+    MinusX = 3,
+    MinusY = 4,
+    MinusZ = 5,
 }
 
 impl Renderer {

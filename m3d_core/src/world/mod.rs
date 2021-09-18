@@ -121,7 +121,7 @@ impl World {
         let block = bundle.get(dx, dy, dz);
         if let Block::Full(block_data) = block {
             let material_data = block_data.material.data();
-            if material_data.is_transparent {
+            if material_data.is_transparent || material_data.texture.is_none() {
                 return;
             }
 
@@ -158,7 +158,7 @@ impl World {
                         &halfsides,
                         &transform,
                         &calculate_lighting,
-                        0,
+                        material_data.texture.unwrap()[face as usize],
                     );
                 } else {
                     break;
