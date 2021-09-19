@@ -3,7 +3,7 @@ use std::cmp;
 pub mod gfx;
 mod pixeliterator;
 
-use crate::camera::{Camera, CameraCache, CameraData};
+use crate::camera::{CameraCache, CameraData};
 use crate::rendermath::{Matrix, Point3D, RenderMatrices, Vector};
 use gfx::{Color, Texture};
 use pixeliterator::PixelIterator;
@@ -27,7 +27,7 @@ pub enum CubeFace {
 }
 
 impl Renderer {
-    pub fn new(camera: &Camera, width: usize, height: usize, texture_array: &[u8]) -> Self {
+    pub fn new(width: usize, height: usize, texture_array: &[u8]) -> Self {
         let texture_slice_len = (4 * (gfx::TEXTURE_LEN + 1)) as usize;
 
         let mut textures: Vec<Texture> = Vec::new();

@@ -5,7 +5,7 @@ pub use material::Material;
 use crate::camera::{Camera, CameraCache, UNITS_PER_BLOCK};
 use crate::rendering::gfx::{Color, Light};
 use crate::rendering::{CubeFace, Renderer};
-use crate::rendermath::{Point3D, RenderMatrices, Vector};
+use crate::rendermath::{Point3D, Vector};
 
 const BLOCK_BUNDLE_SIZE: usize = 16;
 
@@ -30,6 +30,7 @@ pub enum Block {
 #[derive(Debug)]
 pub struct BlockBundle {
     blocks: Vec<Block>,
+    to_draw: usize,
 }
 
 pub struct World {
@@ -183,76 +184,70 @@ impl World {
         let y = (v + world_data.offset_y) as f32 * bundle_size;
         let z = (w + world_data.offset_z) as f32 * bundle_size;
 
-        if Camera::in_frustum(
-            &Point3D::from_euc_coords_float(x, y, z),
-            &mut camera.cache,
-            &camera.data,
-        )
-        .is_some()
-            || Camera::in_frustum(
+        if let Some(bundle) = world_data.get_bundle(
+            u + world_data.offset_x,
+            v + world_data.offset_y,
+            w + world_data.offset_z,
+        ) {
+            if bundle.to_draw <= 0 {
+                return;
+            }
+
+            if !(Camera::in_frustum(
+                &Point3D::from_euc_coords_float(x, y, z),
+                &mut camera.cache,
+                &camera.data,
+            ) || Camera::in_frustum(
                 &Point3D::from_euc_coords_float(bundle_size + x, y, z),
                 &mut camera.cache,
                 &camera.data,
-            )
-            .is_some()
-            || Camera::in_frustum(
+            ) || Camera::in_frustum(
                 &Point3D::from_euc_coords_float(bundle_size + x, bundle_size + y, z),
                 &mut camera.cache,
                 &camera.data,
-            )
-            .is_some()
-            || Camera::in_frustum(
+            ) || Camera::in_frustum(
                 &Point3D::from_euc_coords_float(bundle_size + x, y, bundle_size + z),
                 &mut camera.cache,
                 &camera.data,
-            )
-            .is_some()
-            || Camera::in_frustum(
+            ) || Camera::in_frustum(
                 &Point3D::from_euc_coords_float(x, bundle_size + y, z),
                 &mut camera.cache,
                 &camera.data,
-            )
-            .is_some()
-            || Camera::in_frustum(
+            ) || Camera::in_frustum(
+                &Point3D::from_euc_coords_float(x, bundle_size + y, z),
+                &mut camera.cache,
+                &camera.data,
+            ) || Camera::in_frustum(
                 &Point3D::from_euc_coords_float(bundle_size + x, bundle_size + y, z),
                 &mut camera.cache,
                 &camera.data,
-            )
-            .is_some()
-            || Camera::in_frustum(
+            ) || Camera::in_frustum(
                 &Point3D::from_euc_coords_float(x, bundle_size + y, bundle_size + z),
                 &mut camera.cache,
                 &camera.data,
-            )
-            .is_some()
-            || Camera::in_frustum(
+            ) || Camera::in_frustum(
                 &Point3D::from_euc_coords_float(bundle_size + x, bundle_size + y, bundle_size + z),
                 &mut camera.cache,
                 &camera.data,
-            )
-            .is_some()
-        {
-            if let Some(bundle) = world_data.get_bundle(
-                u + world_data.offset_x,
-                v + world_data.offset_y,
-                w + world_data.offset_z,
-            ) {
-                for indx in 0..BLOCK_BUNDLE_SIZE {
-                    for indy in 0..BLOCK_BUNDLE_SIZE {
-                        for indz in 0..BLOCK_BUNDLE_SIZE {
-                            Self::draw_block(
-                                camera,
-                                &world_data.lights,
-                                &bundle,
-                                indx,
-                                indy,
-                                indz,
-                                x,
-                                y,
-                                z,
-                                renderer,
-                            );
-                        }
+            )) {
+                return;
+            }
+
+            for indz in 0..BLOCK_BUNDLE_SIZE {
+                for indy in 0..BLOCK_BUNDLE_SIZE {
+                    for indx in 0..BLOCK_BUNDLE_SIZE {
+                        Self::draw_block(
+                            camera,
+                            &world_data.lights,
+                            &bundle,
+                            indx,
+                            indy,
+                            indz,
+                            x,
+                            y,
+                            z,
+                            renderer,
+                        );
                     }
                 }
             }
@@ -336,17 +331,19 @@ impl WorldData {
         );
         Some((block, bundle))
     }
-    pub fn get_mut(&mut self, x: usize, y: usize, z: usize) -> Option<&mut Block> {
-        let bundle = self.get_bundle_mut(
+    pub fn set(&mut self, x: usize, y: usize, z: usize, value: Block) {
+        if let Some(bundle) = self.get_bundle_mut(
             x / BLOCK_BUNDLE_SIZE,
             y / BLOCK_BUNDLE_SIZE,
             z / BLOCK_BUNDLE_SIZE,
-        )?;
-        Some(bundle.get_mut(
-            x % BLOCK_BUNDLE_SIZE,
-            y % BLOCK_BUNDLE_SIZE,
-            z % BLOCK_BUNDLE_SIZE,
-        ))
+        ) {
+            bundle.set(
+                x % BLOCK_BUNDLE_SIZE,
+                y % BLOCK_BUNDLE_SIZE,
+                z % BLOCK_BUNDLE_SIZE,
+                value,
+            )
+        }
     }
 }
 
@@ -394,7 +391,7 @@ impl BlockBundle {
         for _ in 0..num_blocks {
             blocks.push(Block::new());
         }
-        Self { blocks }
+        Self { blocks, to_draw: 0 }
     }
     pub fn get(&self, x: usize, y: usize, z: usize) -> &Block {
         unsafe {
@@ -403,11 +400,17 @@ impl BlockBundle {
             )
         }
     }
-    pub fn get_mut(&mut self, x: usize, y: usize, z: usize) -> &mut Block {
+    pub fn set(&mut self, x: usize, y: usize, z: usize, value: Block) {
         unsafe {
-            self.blocks.get_unchecked_mut(
+            let old = self.blocks.get_unchecked_mut(
                 BLOCK_BUNDLE_SIZE * BLOCK_BUNDLE_SIZE * z + BLOCK_BUNDLE_SIZE * y + x,
-            )
+            );
+            if value.is_occluder() && !old.is_occluder() {
+                self.to_draw += 1;
+            } else if old.is_occluder() && !value.is_occluder() {
+                self.to_draw -= 1;
+            }
+            *old = value;
         }
     }
 }

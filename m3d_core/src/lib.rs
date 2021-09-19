@@ -30,14 +30,19 @@ impl GameState {
         let mut world = World::new(game_camera, 10);
         for indx in 0..150 {
             for indz in 0..150 {
-                *world.data.get_mut(indx, 1, indz).unwrap() = Block::Full(BlockData {
-                    shape: Shape::Block,
-                    material: if indx % 2 == 0 {
-                        Material::Dirt
-                    } else {
-                        Material::Grass
-                    },
-                });
+                world.data.set(
+                    indx,
+                    1,
+                    indz,
+                    Block::Full(BlockData {
+                        shape: Shape::Block,
+                        material: if indx % 2 == 0 {
+                            Material::Dirt
+                        } else {
+                            Material::Grass
+                        },
+                    }),
+                );
             }
         }
         world.data.lights = vec![
@@ -58,7 +63,7 @@ impl GameState {
             )),
         ];
         Self {
-            renderer: rendering::Renderer::new(&world.camera, width, height, texture_array),
+            renderer: rendering::Renderer::new(width, height, texture_array),
             world,
             last_frame: 0,
         }

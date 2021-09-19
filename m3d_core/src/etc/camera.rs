@@ -85,11 +85,7 @@ impl Camera {
             data,
         ))
     }
-    pub fn in_frustum(
-        point: &Point3D,
-        cache: &mut CameraCache,
-        data: &CameraData,
-    ) -> Option<Point3D> {
+    pub fn in_frustum(point: &Point3D, cache: &mut CameraCache, data: &CameraData) -> bool {
         let transformed = Self::reverse_frustum(point, cache, data);
 
         let z_factor = (transformed.get(2) / data.near).abs();
@@ -97,13 +93,13 @@ impl Camera {
         let y_cutoff = (z_factor * data.center_y / (data.scale as f32)).ceil();
 
         if transformed.get(0).abs() > x_cutoff {
-            None
+            false
         } else if transformed.get(1).abs() > y_cutoff {
-            None
+            false
         } else if transformed.get(2).abs() > data.far || transformed.get(2).abs() < data.near {
-            None
+            false
         } else {
-            Some(transformed)
+            true
         }
     }
 }
